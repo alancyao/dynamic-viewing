@@ -10,33 +10,45 @@ class FacialRecognition:
 
   def run(self):
     self.cap = cv2.VideoCapture(0)
-    while (self.cap.isOpened()):
+    print "When face is visible, press Enter to continue."
+    while self.cap.isOpened():
       ret, frame = self.cap.read()
-      frame = cv2.resize(frame, dsize=(0, 0), fx=0.3, fy=0.3)
+      frame = cv2.resize(frame, dsize=(0, 0), fx=0.7, fy=0.7)
       if not ret:
-        sys.stderr.write("Camera error, quitting.\n")
-        raise FacialRecognitionException()
+        print "Something is wrong..."
+        return
       gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+      # TODO: our own haar cascade
       faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
-
       for x, y, w, h in faces:
-        init_dist = w
         cv2.rectangle(frame, (x, y), (x + w, y + h), color=(255, 0, 0), thickness=2)
-        roi_gray = gray[y:y+h, x:x+w]
-        roi_color = frame[y:y+h, x:x+w]
-        noses = self.nose_cascade.detectMultiScale(roi_gray)
-        noses = np.array(filter(lambda n: n[0] > w / 4 and n[0] + n[2] < 3 * w / 4, noses))
-        for nx, ny, nw, nh in noses:
-          cv2.rectangle(roi_color, (nx, ny), (nx + nw, ny + nh), color=(0, 255, 0), thickness=2)
-	eyes = self.eye_cascade.detectMultiScale(roi_gray)
-        eyes = np.array(filter(lambda e: e[1] + e[3] < 2 * h / 3 and (e[0] + e[2] < w / 2 or e[0] > w / 2), eyes))
-	for nx, ny, nw, nh in eyes:
-          cv2.rectangle(roi_color, (nx, ny), (nx + nw, ny + nh), color=(0, 0, 255), thickness=2)
-
       cv2.imshow("calibration", frame)
-
-      if cv2.waitKey(1) & 0xFF == ord("c"):
+      if cv2.waitKey(1) & 0xFF == 10:
         cv2.destroyWindow("calibration")
+        if len(faces) > 0:
+          break
+        else:
+          print "No face detected."
+
+    x, y, w, h = faces[0]
+    face_roi_gray = gray[y:y+h, x:x+w]
+    face_roi = frame[y:y+h, x:x+w]
+    while self.cap.isOpened():
+      ret, frame = self.cap.read()
+      frame = cv2.resize(frame, dsize=(0, 0), fx=0.7, fy=0.7)
+      if not ret:
+        print "Something is wrong..."
+        return
+      down_steps = (frame.shape[0] - h) / 10
+      right_steps = (frame.shape[1] - w) / 10
+      ssds = {}
+      for i in range(down_steps):
+        for j in range(right_steps):
+          cand_roi = frame[10*i:10*i+h, 10*j:10*j+w]
+          ssds[(i, j)] = ((face_roi - cand_roi) ** 2).sum()
+      best_i, best_j = min(ssds, key=lambda k: ssds[k])
+      print best_i, best_j
+      best_roi = frame[10*best_i:10*best_i+h, 10*best_j:10*best_j+w]
 
 def main():
   FacialRecognition().run()
