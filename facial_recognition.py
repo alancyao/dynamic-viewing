@@ -31,7 +31,6 @@ class FacialRecognition:
           print "No face detected."
 
     x, y, w, h = faces[0]
-    face_roi_gray = gray[y:y+h, x:x+w]
     face_roi = frame[y:y+h, x:x+w]
     while self.cap.isOpened():
       ret, frame = self.cap.read()
@@ -47,8 +46,9 @@ class FacialRecognition:
           cand_roi = frame[10*i:10*i+h, 10*j:10*j+w]
           ssds[(i, j)] = ((face_roi - cand_roi) ** 2).sum()
       best_i, best_j = min(ssds, key=lambda k: ssds[k])
-      print best_i, best_j
       best_roi = frame[10*best_i:10*best_i+h, 10*best_j:10*best_j+w]
+      cv2.imshow("best roi", best_roi)
+      cv2.waitKey(5)
 
 def main():
   FacialRecognition().run()
