@@ -1,0 +1,14 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, textcomp, amssymb, geometry, graphicx, parskip, algpseudocode, listings}
+
+\title{Project Proposals}
+\date{}
+\pagestyle{myheadings}
+
+\begin{document}
+\maketitle
+\section{}
+Our overall idea is to reconstruct a 3d model of the scene from multiple images, or a single image with a depth map. First, we get a depth-mapped image of an arbitrary scene. We can do this by using an RGBD camera such as the intel realsense camera, microsoft kinect, the   HTC One M8, or pulling from a known RGBD dataset. Alternatively, we can take multiple pictures from fixed locations, find correspondences, and solve for a point cloud. This is less preferable. Next, we will use a known image segmentation algorithm using graph cuts to extract foreground objects from the scene. At this point, we have a point cloud associated with each object. Now we reconstruct objects by using a 3D Delaunay triangulation algorithm (such as the 4D convex hull), or by using a full surface reconstruction algorithm like powercrust. This gives us a mesh of the surface. Finally, we naively transform and apply the image pixels as a texture for the mesh. If we estimage lighting locations, we can now re-render the scene using arbitrary angles and lightings.
+\section{}
+3d graphics on monitors are unrealistic because they assume a center of projection some distance away from the center of the screen. That is, they assume the viewer is at a certain position (usually in front of the middle of the screen) when generating the projection. If the position of the viewer is known, however, the center of projection can be set to match the viewer's point of view. This should produce a more realistic picture on the screen, much akin to looking through a window. We plan to use object recognition to detect the position of the viewer's face using a laptop webcam. We will then render a scene using the position of the center of the viewer's face as the center of projection.
+\end{document}
