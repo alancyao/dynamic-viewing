@@ -46,8 +46,9 @@ class FacialRecognition:
           cand_roi = frame[10*i:10*i+h, 10*j:10*j+w]
           ssds[(i, j)] = ((face_roi - cand_roi) ** 2).sum()
       best_i, best_j = min(ssds, key=lambda k: ssds[k])
-      best_roi = frame[10*best_i:10*best_i+h, 10*best_j:10*best_j+w]
-      cv2.imshow("best roi", best_roi)
+      cv2.rectangle(frame, (10*best_j, 10*best_i), (10*best_j + w, 10*best_i + h), color=(255, 0, 0), thickness=2)
+      # best_roi = frame[10*best_i:10*best_i+h, 10*best_j:10*best_j+w]
+      cv2.imshow("frame", frame)
       cv2.waitKey(5)
 
 def main():
