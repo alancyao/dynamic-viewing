@@ -496,8 +496,8 @@ class Window(pyglet.window.Window):
         pyglet.clock.schedule_interval(self.update, 1.0 / TICKS_PER_SEC)
 
         # Set up recognition
-        self.prev_ext = (0, 0)
-        self.ext_rotation = (0, 0)
+        self.prev_ext = np.array((0, 0))
+        self.ext_rotation = np.array((0, 0))
 
         if USE_FACE:
             self.detect_ctr = 1
@@ -817,8 +817,6 @@ class Window(pyglet.window.Window):
         glLoadIdentity()
         x, y = self.rotation
         # interpolate the rotation
-        print 'self rot: ' + str(self.ext_rotation)
-        print 'prev rot: ' + str(self.prev_ext)
         x2, y2 = (self.ext_rotation + self.prev_ext) / 2.0
         x += x2
         y += y2

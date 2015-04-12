@@ -2,6 +2,7 @@ import sys
 import numpy as np
 from skimage import transform as tf
 import cv2
+from threading import *
 
 NUM_PYR = 2
 WINDOW_AMT = 8
@@ -10,15 +11,31 @@ DISP_SCALE = 0.7
 AVERAGE_FACE_WIDTH = 250
 START_FACE_DIST = 310
 
+
+class WebcamImageGetter:
+    def __init__(self):
+        self.currentFrame = None
+        self.capture = cv2.VideoCapture(0) #Put in correct capture number here
+
+    def start(self):
+        Thread(target=self.updateFrame, args=()).start()
+
+    def updateFrame(self):
+        while(True):
+            ret, self.currentFrame = self.capture.read()
+
+    def getFrame(self):
+        return self.currentFrame
+
 class FacialRecognition:
   def run(self):
-    self.cap = cv2.VideoCapture(0)
+    self.ig = WebcamImageGetter()
+    self.ig.start()
     print "When face is visible, press Enter to continue."
-    while self.cap.isOpened():
-      ret, frame = self.cap.read()
-      if not ret:
-        print "Something is wrong..."
-        return
+    while True:
+      frame = self.ig.getFrame()
+      if frame is None:
+        continue
       frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
       gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
       face_cascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
@@ -38,11 +55,8 @@ class FacialRecognition:
     face_pyramid = list(tf.pyramid_gaussian(face_roi, max_layer=NUM_PYR, downscale=2))
     print "Tracking face..."
 
-    while self.cap.isOpened():
-      ret, frame = self.cap.read()
-      if not ret:
-        print "Something is wrong..."
-        return
+    while True:
+      frame = self.ig.getFrame()
       frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
       frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
 
@@ -52,13 +66,13 @@ class FacialRecognition:
       cv2.waitKey(5)
 
   def calibrate(self):
-    self.cap = cv2.VideoCapture(0)
+    self.ig = WebcamImageGetter()
+    self.ig.start()
     print "Place face 1 ft from camera. When face is visible, press Enter to continue."
-    while self.cap.isOpened():
-      ret, frame = self.cap.read()
-      if not ret:
-        print "Something is wrong..."
-        return
+    while True:
+      frame = self.ig.getFrame()
+      if frame is None:
+        continue
       frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
       gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
       face_cascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
@@ -100,11 +114,7 @@ class FacialRecognition:
     cv2.waitKey(1)
 
   def get_face(self):
-    ret, frame = self.cap.read()
-    if not ret:
-      print "Something is wrong..."
-      return
-    frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
+    frame = self.ig.getFrame()
     frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
 
     best_i, best_j = self.determine_best_shift(self.face_pyramid, frame_pyramid)
@@ -114,7 +124,7 @@ class FacialRecognition:
     center = self.get_face()
     disp = center - self.start_center
     rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi) # change to actual face dist
-    return rot
+    return np.array(rot)
 
   def determine_best_shift(self, face_pyramid, frame_pyramid):
     wa = int(WINDOW_AMT / (2 ** NUM_PYR))
