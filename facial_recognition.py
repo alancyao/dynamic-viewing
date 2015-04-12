@@ -85,10 +85,15 @@ class FacialRecognition:
     frame = self.ig.getFrame()
     frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
 
-    best_i, best_j = self.determine_best_shift(self.face_pyramid, frame_pyramid)
+    res = self.determine_best_shift(self.face_pyramid, frame_pyramid)
+    if res is None:
+      print "No face detected."
+      return self.best_i, self.best_j, frame
+    best_i, best_j = res
     cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
     cv2.imshow("frame", frame)
     cv2.waitKey(1)
+    self.best_i, self.best_j = best_i, best_j
     return best_i, best_j, frame
 
   def get_rotation(self):
@@ -107,6 +112,8 @@ class FacialRecognition:
                              face_pyramid[pyr_index],
                              2 ** pyr_index,
                              region_indices)
+      if res == "no face":
+        return None
       if res is None:
         break
       best_i, best_j = res
@@ -127,6 +134,9 @@ class FacialRecognition:
     if not ssds:
       return None
     best_i, best_j = min(ssds, key=lambda k: ssds[k])
+    z_score = (ssds[(best_i, best_j)] - np.mean(ssds.values())) / np.std(ssds.values()) if np.std(ssds.values()) != 0 else 0
+    if z_score == float("nan") or z_score >= -1:
+      return "no face"
     return best_i, best_j
 
 def main():
