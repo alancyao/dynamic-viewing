@@ -29,44 +29,22 @@ class WebcamImageGetter:
     return self.currentFrame
 
 class FacialRecognition:
-  def run(self):
-    self.ig = WebcamImageGetter()
-    self.ig.start()
-    print "When face is visible, press Enter to continue."
-    while True:
-      frame = self.ig.getFrame()
-      if frame is None:
-        continue
-      frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
-      gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-      face_cascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
-      faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
-      for x, y, w, h in faces:
-        cv2.rectangle(frame, (x, y), (x + w, y + h), color=(255, 0, 0), thickness=2)
-      cv2.imshow("calibration", frame)
-      if cv2.waitKey(1) & 0xFF == 10:
-        cv2.destroyWindow("calibration")
-        if len(faces) > 0:
-          break
-        else:
-          print "No face detected."
+  def end(self):
+    cv2.destroyWindow("frame")
+    cv2.waitKey(1)
+    self.ig.keep_going = False
 
-    x, y, w, h = faces[0]
-    face_roi = frame[y:y+h, x:x+w]
-    face_pyramid = list(tf.pyramid_gaussian(face_roi, max_layer=NUM_PYR, downscale=2))
+  def run(self):
+    self.calibrate()
     print "Tracking face..."
 
     while True:
-      frame = self.ig.getFrame()
-      frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
-      frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
-
-      best_i, best_j = self.determine_best_shift(face_pyramid, frame_pyramid)
-      cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + w, WINDOW_AMT*best_i + h), color=(255, 0, 0), thickness=2)
+      best_i, best_j, frame = self.get_face()
+      # Display bounding box
+      cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
       cv2.imshow("frame", frame)
       if cv2.waitKey(1) & 0xFF == 10:
-        cv2.destroyWindow("frame")
-        self.ig.keep_going = False
+        self.end()
         break
 
   def calibrate(self):
@@ -100,20 +78,6 @@ class FacialRecognition:
     self.w = w; self.h = h
     cv2.destroyWindow("calibration")
     cv2.waitKey(1)
-    self.wtf()
-
-  def wtf(self):
-    cv2.destroyWindow("calibration")
-    cv2.waitKey(1)
-    cv2.destroyWindow("calibration")
-    cv2.waitKey(1)
-    cv2.destroyWindow("calibration")
-    cv2.destroyWindow("calibration")
-    cv2.waitKey(1)
-    cv2.destroyWindow("calibration")
-    cv2.waitKey(1)
-    cv2.destroyWindow("calibration")
-    cv2.waitKey(1)
     cv2.destroyWindow("calibration")
     cv2.waitKey(1)
 
@@ -125,10 +89,11 @@ class FacialRecognition:
     cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
     cv2.imshow("frame", frame)
     cv2.waitKey(1)
-    return (np.array((WINDOW_AMT*best_j, WINDOW_AMT*best_i)) + np.array((WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h))) / 2.0
+    return best_i, best_j, frame
 
   def get_rotation(self):
-    center = self.get_face()
+    best_i, best_j, frame = self.get_face()
+    center = (np.array((WINDOW_AMT*best_j, WINDOW_AMT*best_i)) + np.array((WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h))) / 2.0
     disp = center - self.start_center
     rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi) # change to actual face dist
     return np.array(rot)

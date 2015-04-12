@@ -1,4 +1,5 @@
 import math
+import sys
 import random
 import time
 import numpy as np
@@ -746,6 +747,9 @@ class Window(pyglet.window.Window):
         elif symbol == key.SPACE:
             if self.dy == 0:
                 self.dy = JUMP_SPEED
+        elif symbol == key.Q:
+            self.f.end()
+            sys.exit(0)
         elif symbol == key.ESCAPE:
             self.set_exclusive_mouse(False)
         elif symbol == key.TAB:
