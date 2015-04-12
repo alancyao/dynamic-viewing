@@ -3,11 +3,9 @@ import numpy as np
 from skimage import transform as tf
 import cv2
 
-DISP_SCALE = 0.7
 WINDOW_AMT = 10
+DISP_SCALE = 0.7
 NUM_PYR = 2
-# ROT_AMTS = np.linspace(-90, 90, num=20)
-ROT_AMTS = [0]
 
 class FacialRecognition:
   def run(self):
@@ -41,22 +39,10 @@ class FacialRecognition:
         print "Something is wrong..."
         return
       frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
+      frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
 
-      frame_pyramids = [list(tf.pyramid_gaussian(tf.rotate(frame, angle=rot_amt),
-                                                 max_layer=NUM_PYR,
-                                                 downscale=2)) for rot_amt in ROT_AMTS]
-      ssds = {}
-      for i, frame_pyramid in enumerate(frame_pyramids):
-        ssds[ROT_AMTS[i]] = self.determine_best_shift(face_pyramid, frame_pyramid)
-      best_rot_amt = min(ssds, key=lambda k: ssds[k][2])
-      best_rot_amt *= np.pi / 180.0
-      best_i, best_j, best_ssd = ssds[best_rot_amt]
-      pixel_loc = np.array([WINDOW_AMT * best_i, WINDOW_AMT * best_j])
-      pixel_loc -= np.array(frame.shape[:2]) / 2
-      pixel_loc = np.array([[np.cos(best_rot_amt), -np.sin(best_rot_amt)], [np.sin(best_rot_amt), np.cos(best_rot_amt)]]).dot(pixel_loc)
-      pixel_loc += np.array(frame.shape[:2]) / 2
-      pixel_loc = map(int, pixel_loc)
-      cv2.rectangle(frame, (pixel_loc[1], pixel_loc[0]), (pixel_loc[1] + w, pixel_loc[0] + h), color=(255, 0, 0), thickness=2)
+      best_i, best_j = self.determine_best_shift(face_pyramid, frame_pyramid)
+      cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + w, WINDOW_AMT*best_i + h), color=(255, 0, 0), thickness=2)
       cv2.imshow("frame", frame)
       cv2.waitKey(5)
 
@@ -71,10 +57,10 @@ class FacialRecognition:
                              region_indices)
       if res is None:
         break
-      best_i, best_j, best_ssd = res
+      best_i, best_j = res
       region_indices = [best_i - 1, best_i + 1,
                         best_j - 1, best_j + 1]
-    return best_i, best_j, best_ssd
+    return best_i, best_j
 
   def compute_ssd(self, frame, face, scaleAmt, region_indices):
     wa = int(WINDOW_AMT / scaleAmt)
@@ -89,7 +75,7 @@ class FacialRecognition:
     if not ssds:
       return None
     best_i, best_j = min(ssds, key=lambda k: ssds[k])
-    return best_i, best_j, ssds[(best_i, best_j)]
+    return best_i, best_j
 
 def main():
   FacialRecognition().run()
