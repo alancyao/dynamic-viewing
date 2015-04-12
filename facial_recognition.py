@@ -93,7 +93,11 @@ class FacialRecognition:
 
     ssds = {}
     for i, face_pyramid in enumerate(self.face_pyramids):
-      best_i, best_j, best_ssd = self.determine_best_shift(face_pyramid, frame_pyramid)
+      res = self.determine_best_shift(face_pyramid, frame_pyramid)
+      if res is None:
+          print "No face detected."
+          return self.best_i, self.best_j, frame, self.interp_shape
+      best_i, best_j, best_ssd = res
       ssds[i] = (best_ssd * self.scaled_weights[i], best_i, best_j, np.array(face_pyramid[0].shape))
     sorted_ssds = sorted(ssds.items(), key=lambda x : x[1][0])
     best_ssd, best_i, best_j, best_shape = sorted_ssds[0][1]
@@ -101,6 +105,7 @@ class FacialRecognition:
     interp_shape = map(int, best_ssd / (best_ssd + sbest_ssd) * sbest_shape + \
                             sbest_ssd / (best_ssd + sbest_ssd) * best_shape)
     print interp_shape
+    self.best_i, self.best_j, self.interp_shape = best_i, best_j, interp_shape
     return best_i, best_j, frame, interp_shape
 
   def get_rotation(self):
@@ -124,6 +129,8 @@ class FacialRecognition:
                              face_pyramid[pyr_index],
                              2 ** pyr_index,
                              region_indices)
+      if res == "no face":
+        return None
       if res is None:
         break
       best_i, best_j, tmp_ssd = res
@@ -146,6 +153,9 @@ class FacialRecognition:
     if not ssds:
       return None
     best_i, best_j = min(ssds, key=lambda k: ssds[k])
+    z_score = (ssds[(best_i, best_j)] - np.mean(ssds.values())) / np.std(ssds.values()) if np.std(ssds.values()) != 0 else 0
+    if z_score == float("nan") or z_score >= -1:
+      return "no face"
     return best_i, best_j, ssds[(best_i, best_j)]
 
 def main():
