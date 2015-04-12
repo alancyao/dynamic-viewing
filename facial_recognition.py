@@ -10,7 +10,7 @@ assert (float(WINDOW_AMT) / (2 ** NUM_PYR)).is_integer(), "WINDOW_AMT must remai
 DISP_SCALE = 0.7
 AVERAGE_FACE_WIDTH = 250
 START_FACE_DIST = 310
-RESCALING_FACTORS = [0.7, 1, 1.3]
+RESCALING_FACTORS = [0.5, 1, 1.5]
 
 
 class WebcamImageGetter:
@@ -78,6 +78,8 @@ class FacialRecognition:
     self.face_pyramids = [list(tf.pyramid_gaussian(face, max_layer=NUM_PYR, downscale=2))
                           for face in scaled_faces]
     self.scaled_weights = [num_pix / (sf.shape[0]*sf.shape[1]) for sf in scaled_faces]
+    # we observed that the small detector is too strong, so we penalize it more
+    self.scaled_weights[0] *= 1.5
     # w = f*Y/Z  -->  f = wZ/Y
     self.camera_f = w * START_FACE_DIST/AVERAGE_FACE_WIDTH
     self.start_center = np.array((x + w/2.0, y+h/2.0))
@@ -99,12 +101,17 @@ class FacialRecognition:
           return self.best_i, self.best_j, frame, self.interp_shape
       best_i, best_j, best_ssd = res
       ssds[i] = (best_ssd * self.scaled_weights[i], best_i, best_j, np.array(face_pyramid[0].shape))
-    sorted_ssds = sorted(ssds.items(), key=lambda x : x[1][0])
-    best_ssd, best_i, best_j, best_shape = sorted_ssds[0][1]
-    sbest_ssd, best_i, sbest_j, sbest_shape = sorted_ssds[1][1]
-    interp_shape = map(int, best_ssd / (best_ssd + sbest_ssd) * sbest_shape + \
-                            sbest_ssd / (best_ssd + sbest_ssd) * best_shape)
-    print interp_shape
+    best_ssd, best_i, best_j, best_shape = ssds[1]
+    print ssds
+    if ssds[0][0] < ssds[2][0]:
+      print "Using small detector."
+      sbest_ssd, sbest_i, sbest_j, sbest_shape = ssds[0]
+    else:
+      print "Using large detector."
+      sbest_ssd, sbest_i, sbest_j, sbest_shape = ssds[2]
+    print "Interpolated shape: ", map(int, best_ssd / (best_ssd + sbest_ssd) * sbest_shape + \
+                                        sbest_ssd / (best_ssd + sbest_ssd) * best_shape)
+    interp_shape = best_shape
     self.best_i, self.best_j, self.interp_shape = best_i, best_j, interp_shape
     return best_i, best_j, frame, interp_shape
 
@@ -154,8 +161,8 @@ class FacialRecognition:
       return None
     best_i, best_j = min(ssds, key=lambda k: ssds[k])
     z_score = (ssds[(best_i, best_j)] - np.mean(ssds.values())) / np.std(ssds.values()) if np.std(ssds.values()) != 0 else 0
-    if z_score == float("nan") or z_score >= -1:
-      return "no face"
+    # if z_score == float("nan") or z_score >= -1:
+    #   return "no face"
     return best_i, best_j, ssds[(best_i, best_j)]
 
 def main():
