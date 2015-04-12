@@ -23,7 +23,6 @@ class FacialRecognition:
         return
       frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
       gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-      # TODO: our own haar cascade
       faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
       for x, y, w, h in faces:
         cv2.rectangle(frame, (x, y), (x + w, y + h), color=(255, 0, 0), thickness=2)
