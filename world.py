@@ -755,9 +755,11 @@ class Window(pyglet.window.Window):
         elif symbol == key.T:
             self.do_scale = not self.do_scale
             self.ext_trans = [0] * 5
+            print 'Forward/backward translations are', 'on' if self.do_scale else 'off'
         elif symbol == key.R:
             self.do_rot = not self.do_rot
             self.ext_viewrots = [0] * 5
+            print 'Rotations are', 'on' if self.do_rot else 'off'
         elif symbol == key.SPACE:
             if self.dy == 0:
                 self.dy = JUMP_SPEED
@@ -936,6 +938,9 @@ def setup():
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
     setup_fog()
     print 'R to toggle rotation, T to toggle forward/backward movement'
+    print 'WASD to move, mouse to look'
+    print 'Left click to remove, right click to add'
+    print 'Number keys to select block type'
 
 def main():
     window = Window(width=800, height=600, caption='Pyglet', resizable=True)
