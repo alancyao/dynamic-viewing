@@ -11,6 +11,7 @@ DISP_SCALE = 0.7
 AVERAGE_FACE_WIDTH = 250
 START_FACE_DIST = 310
 RESCALING_FACTORS = [0.5, 1, 1.5]
+ROT_AMTS = np.linspace(-45, 45, num=3)
 
 
 class WebcamImageGetter:
@@ -39,7 +40,7 @@ class FacialRecognition:
   def run(self):
     self.calibrate()
     while True:
-      best_i, best_j, frame, interp_shape = self.get_face()
+      best_i, best_j, frame, interp_shape, interp_rot = self.get_face()
       if self.init_interp_shape is None:
         self.init_interp_shape = interp_shape
       # Display bounding box
@@ -85,9 +86,13 @@ class FacialRecognition:
     x, y, w, h = faces[0]
     num_pix = float(w*h)
     face_roi = frame[y:y+h, x:x+w]
+    rotated_faces = [tf.rotate(face_roi, angle=rot_ang) for rot_ang in ROT_AMTS]
+    self.rotated_face_pyramids = [list(tf.pyramid_gaussian(face, max_layer=NUM_PYR, downscale=2))
+                                  for face in rotated_faces]
     scaled_faces = [tf.rescale(face_roi, scale=sc) for sc in RESCALING_FACTORS]
-    self.face_pyramids = [list(tf.pyramid_gaussian(face, max_layer=NUM_PYR, downscale=2))
-                          for face in scaled_faces]
+    self.scaled_face_pyramids = [list(tf.pyramid_gaussian(face, max_layer=NUM_PYR, downscale=2))
+                                 for face in scaled_faces]
+    # scaled_weights are used for scaled_faces
     self.scaled_weights = [num_pix / (sf.shape[0]*sf.shape[1]) for sf in scaled_faces]
     # we observed that the small detector is too strong, so we penalize it more
     self.scaled_weights[0] *= 1.5
@@ -106,21 +111,32 @@ class FacialRecognition:
     frame = self.ig.getFrame()
     frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
 
-    ssds = {}
-    for i, face_pyramid in enumerate(self.face_pyramids):
+    scale_ssds = {}
+    for i, face_pyramid in enumerate(self.scaled_face_pyramids):
       res = self.determine_best_shift(face_pyramid, frame_pyramid)
       best_i, best_j, best_ssd = res
-      ssds[i] = (1.0 / (best_ssd * self.scaled_weights[i]), best_i, best_j, np.array(face_pyramid[0].shape))
-    if len(ssds) == 3:
-      best_i, best_j = ssds[1][1], ssds[1][2]
+      scale_ssds[i] = (1.0 / (best_ssd * self.scaled_weights[i]), best_i, best_j, np.array(face_pyramid[0].shape))
+    if len(scale_ssds) == 3:
+      best_i, best_j = scale_ssds[1][1], scale_ssds[1][2]
     else:
-      best_i, best_j = ssds[0][1], ssds[0][2]
-    total = sum([v[0] for v in ssds.values()])
-    interp_shape = sum([v[0] / total * v[3] for v in ssds.values()])
-    return best_i, best_j, frame, interp_shape
+      best_i, best_j = scale_ssds[0][1], scale_ssds[0][2]
+    total = sum([v[0] for v in scale_ssds.values()])
+    interp_shape = sum([v[0] / total * v[3] for v in scale_ssds.values()])
+
+    rot_ssds = {}
+    for i, face_pyramid in enumerate(self.rotated_face_pyramids):
+      res = self.determine_best_shift(face_pyramid, frame_pyramid)
+      best_i, best_j, best_ssd = res
+      rot_ssds[i] = (1.0 / best_ssd, best_i, best_j, np.array(face_pyramid[0].shape))
+    _, best_i, best_j, _ = rot_ssds[1]
+    total = sum([v[0] for v in rot_ssds.values()])
+    interp_rot = sum([v[0] / total * ROT_AMTS[k] for k, v in rot_ssds.items()])
+    print "Interpolated rot: ", interp_rot
+
+    return best_i, best_j, frame, interp_shape, interp_rot
 
   def get_transforms(self):
-    best_i, best_j, frame, interp_shape = self.get_face()
+    best_i, best_j, frame, interp_shape, interp_rot = self.get_face()
     # Rotation amount
     if self.init_interp_shape is None:
       self.init_interp_shape = interp_shape
