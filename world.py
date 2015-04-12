@@ -747,7 +747,7 @@ class Window(pyglet.window.Window):
         elif symbol == key.SPACE:
             if self.dy == 0:
                 self.dy = JUMP_SPEED
-        elif symbol == key.Q:
+        elif symbol == key.Q or symbol == key.ENTER:
             self.f.end()
             sys.exit(0)
         elif symbol == key.ESCAPE:

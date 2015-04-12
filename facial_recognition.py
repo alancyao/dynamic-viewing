@@ -38,21 +38,32 @@ class FacialRecognition:
 
   def run(self):
     self.calibrate()
-    print "Tracking face..."
-
     while True:
       best_i, best_j, frame, interp_shape = self.get_face()
+      if self.init_interp_shape is None:
+        self.init_interp_shape = interp_shape
       # Display bounding box
-      cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
+      color = self.compute_interp_color(interp_shape)
+      cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=color, thickness=2)
       cv2.imshow("frame", frame)
       if cv2.waitKey(1) & 0xFF == 10:
         cv2.destroyWindow("frame")
         self.ig.keep_going = False
         break
 
+  def compute_interp_color(self, interp_shape):
+    amt = np.linalg.norm(interp_shape - self.init_interp_shape)
+    if interp_shape[0] < self.init_interp_shape[0]:
+      val = min(1.0, amt / 15.0)
+      return (255 * (1 - val), 255 * val, 0)
+    else:
+      val = min(1.0, amt / 15.0)
+      return (255 * (1 - val), 0, 255 * val)
+
   def calibrate(self):
     self.ig = WebcamImageGetter()
     self.ig.start()
+    self.init_interp_shape = None
     print "Place face 1 ft from camera. When face is visible, press Enter to continue."
     while True:
       frame = self.ig.getFrame()
@@ -88,6 +99,8 @@ class FacialRecognition:
     cv2.waitKey(1)
     cv2.destroyWindow("calibration")
     cv2.waitKey(1)
+    print "Tracking face...press Enter to quit."
+    print "Red: close, green: far, blue: in between."
 
   def get_face(self):
     frame = self.ig.getFrame()
@@ -105,12 +118,15 @@ class FacialRecognition:
 
   def get_rotation(self):
     best_i, best_j, frame, interp_shape = self.get_face()
+    if self.init_interp_shape is None:
+      self.init_interp_shape = interp_shape
     center = (np.array((WINDOW_AMT*best_j, WINDOW_AMT*best_i)) + np.array((WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h))) / 2.0
     disp = center - self.start_center
     rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi) # change to actual face dist
 
     # Display image (for fun)
-    cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
+    color = self.compute_interp_color(interp_shape)
+    cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=color, thickness=2)
     cv2.imshow("frame", frame)
     cv2.waitKey(1)
     return np.array(rot)
@@ -146,7 +162,6 @@ class FacialRecognition:
     if not ssds:
       return None
     best_i, best_j = min(ssds, key=lambda k: ssds[k])
-    z_score = (ssds[(best_i, best_j)] - np.mean(ssds.values())) / np.std(ssds.values()) if np.std(ssds.values()) != 0 else 0
     return best_i, best_j, ssds[(best_i, best_j)]
 
 def main():
