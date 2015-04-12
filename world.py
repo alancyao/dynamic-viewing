@@ -501,6 +501,7 @@ class Window(pyglet.window.Window):
         self.smoothing_ind = 0
         self.ext_rotations = [np.array((0, 0))] * 5
         self.ext_trans = [0] * 5
+        self.ext_viewrots = [0] * 5
 
         if USE_FACE:
             self.detect_ctr = 1
@@ -597,9 +598,10 @@ class Window(pyglet.window.Window):
         if USE_FACE:
             self.detect_ctr = (self.detect_ctr + 1) % DETECT_PER_FRAMES
             if self.detect_ctr == 0:
-                ext_rotation, ext_tran = self.f.get_transforms()
+                ext_rotation, ext_tran, ext_viewrot = self.f.get_transforms()
                 self.ext_rotations[self.smoothing_ind] = ext_rotation
                 self.ext_trans[self.smoothing_ind] = ext_tran
+                self.ext_viewrots[self.smoothing_ind] = ext_viewrot
                 self.smoothing_ind = (self.smoothing_ind + 1) % SMOOTHING_TIME
 
     def _update(self, dt):
@@ -831,10 +833,16 @@ class Window(pyglet.window.Window):
         glRotatef(x, 0, 1, 0)
         glRotatef(-y, math.cos(math.radians(x)), 0, math.sin(math.radians(x)))
 
+        # interpolate view axis rotation
+        vx, vy, vz = np.array(self.get_sight_vector())
+        view_rotamt = np.average(self.ext_viewrots) * 10
+        glRotatef(view_rotamt, vx, vy, vz)
+
         # Find the sight translation
-        view_dir = np.array(self.get_sight_vector()) * np.average(self.ext_trans) * -0.1
+        view_dir = np.array(self.get_sight_vector()) * np.average(self.ext_trans) * -0.05
         x, y, z = np.array(self.position) + view_dir
         glTranslatef(-x, -y, -z)
+
 
 
     def on_draw(self):

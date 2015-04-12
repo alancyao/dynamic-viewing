@@ -152,7 +152,7 @@ class FacialRecognition:
     cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=color, thickness=2)
     cv2.imshow("frame", frame)
     cv2.waitKey(1)
-    return np.array(rot), ztrans
+    return np.array(rot), ztrans, interp_rot
 
   def determine_best_shift(self, face_pyramid, frame_pyramid):
     wa = int(WINDOW_AMT / (2 ** NUM_PYR))
