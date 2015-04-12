@@ -8,11 +8,6 @@ DISP_SCALE = 0.7
 NUM_PYR = 2
 
 class FacialRecognition:
-  def __init__(self):
-    self.face_cascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
-    self.nose_cascade = cv2.CascadeClassifier("haarcascades/haarcascade_mcs_nose.xml")
-    self.eye_cascade = cv2.CascadeClassifier("haarcascades/haarcascade_eye.xml")
-
   def run(self):
     self.cap = cv2.VideoCapture(0)
     print "When face is visible, press Enter to continue."
@@ -23,7 +18,8 @@ class FacialRecognition:
         return
       frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
       gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-      faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+      face_cascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+      faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
       for x, y, w, h in faces:
         cv2.rectangle(frame, (x, y), (x + w, y + h), color=(255, 0, 0), thickness=2)
       cv2.imshow("calibration", frame)
