@@ -111,7 +111,10 @@ class FacialRecognition:
       res = self.determine_best_shift(face_pyramid, frame_pyramid)
       best_i, best_j, best_ssd = res
       ssds[i] = (1.0 / (best_ssd * self.scaled_weights[i]), best_i, best_j, np.array(face_pyramid[0].shape))
-    best_i, best_j = ssds[1][1], ssds[1][2]
+    if len(ssds) == 3:
+      best_i, best_j = ssds[1][1], ssds[1][2]
+    else:
+      best_i, best_j = ssds[0][1], ssds[0][2]
     total = sum([v[0] for v in ssds.values()])
     interp_shape = sum([v[0] / total * v[3] for v in ssds.values()])
     return best_i, best_j, frame, interp_shape
