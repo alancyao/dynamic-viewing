@@ -118,6 +118,9 @@ class FacialRecognition:
     frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
 
     best_i, best_j = self.determine_best_shift(self.face_pyramid, frame_pyramid)
+    cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
+    cv2.imshow("frame", frame)
+    cv2.waitKey(1)
     return (np.array((WINDOW_AMT*best_j, WINDOW_AMT*best_i)) + np.array((WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h))) / 2.0
 
   def get_rotation(self):
