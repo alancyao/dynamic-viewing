@@ -103,17 +103,21 @@ class FacialRecognition:
     interp_shape = sum([v[0] / total * v[3] for v in ssds.values()])
     return best_i, best_j, frame, interp_shape
 
-  def get_rotation(self):
+  def get_transforms(self):
     best_i, best_j, frame, interp_shape = self.get_face()
+    # Rotation amount
     center = (np.array((WINDOW_AMT*best_j, WINDOW_AMT*best_i)) + np.array((WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h))) / 2.0
     disp = center - self.start_center
     rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi) # change to actual face dist
+
+    # Z-Axis translation amt:  w = fX/Z -> Z = fX/w
+    ztrans = self.camera_f - self.camera_f * interp_shape[0] / self.w
 
     # Display image (for fun)
     cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
     cv2.imshow("frame", frame)
     cv2.waitKey(1)
-    return np.array(rot)
+    return np.array(rot), ztrans
 
   def determine_best_shift(self, face_pyramid, frame_pyramid):
     wa = int(WINDOW_AMT / (2 ** NUM_PYR))

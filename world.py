@@ -20,6 +20,7 @@ SECTOR_SIZE = 16
 # Face tracking flags
 USE_FACE = True
 DETECT_PER_FRAMES = 5
+SMOOTHING_TIME = 5
 
 WALKING_SPEED = 5
 FLYING_SPEED = 15
@@ -497,8 +498,9 @@ class Window(pyglet.window.Window):
         pyglet.clock.schedule_interval(self.update, 1.0 / TICKS_PER_SEC)
 
         # Set up recognition
-        self.prev_ext = np.array((0, 0))
-        self.ext_rotation = np.array((0, 0))
+        self.smoothing_ind = 0
+        self.ext_rotations = [np.array((0, 0))] * 5
+        self.ext_trans = [0] * 5
 
         if USE_FACE:
             self.detect_ctr = 1
@@ -595,8 +597,10 @@ class Window(pyglet.window.Window):
         if USE_FACE:
             self.detect_ctr = (self.detect_ctr + 1) % DETECT_PER_FRAMES
             if self.detect_ctr == 0:
-                self.prev_ext = self.ext_rotation
-                self.ext_rotation = self.f.get_rotation()
+                ext_rotation, ext_tran = self.f.get_transforms()
+                self.ext_rotations[self.smoothing_ind] = ext_rotation
+                self.ext_trans[self.smoothing_ind] = ext_tran
+                self.smoothing_ind = (self.smoothing_ind + 1) % SMOOTHING_TIME
 
     def _update(self, dt):
         """ Private implementation of the `update()` method. This is where most
@@ -821,13 +825,17 @@ class Window(pyglet.window.Window):
         glLoadIdentity()
         x, y = self.rotation
         # interpolate the rotation
-        x2, y2 = (self.ext_rotation + self.prev_ext) / 2.0
+        x2, y2 = sum(self.ext_rotations) / len(self.ext_rotations)
         x += x2
         y += y2
         glRotatef(x, 0, 1, 0)
         glRotatef(-y, math.cos(math.radians(x)), 0, math.sin(math.radians(x)))
-        x, y, z = self.position
+
+        # Find the sight translation
+        view_dir = np.array(self.get_sight_vector()) * np.average(self.ext_trans) * -0.1
+        x, y, z = np.array(self.position) + view_dir
         glTranslatef(-x, -y, -z)
+
 
     def on_draw(self):
         """ Called by pyglet to draw the canvas.
