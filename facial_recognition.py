@@ -46,22 +46,26 @@ class FacialRecognition:
       frame = cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
       frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
 
-      wa = int(WINDOW_AMT / (2 ** NUM_PYR))
-      region_indices = [0, (frame_pyramid[-1].shape[0] - face_pyramid[-1].shape[0]) / wa,
-                        0, (frame_pyramid[-1].shape[1] - face_pyramid[-1].shape[1]) / wa]
-      for pyr_index in reversed(range(NUM_PYR+1)):
-        res = self.compute_ssd(frame_pyramid[pyr_index],
-                               face_pyramid[pyr_index],
-                               2 ** pyr_index,
-                               region_indices)
-        if res is None:
-          break
-        best_i, best_j = res
-        region_indices = [best_i - 1, best_i + 1,
-                          best_j - 1, best_j + 1]
+      best_i, best_j = self.determine_best_shift(face_pyramid, frame_pyramid)
       cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + w, WINDOW_AMT*best_i + h), color=(255, 0, 0), thickness=2)
       cv2.imshow("frame", frame)
       cv2.waitKey(5)
+
+  def determine_best_shift(self, face_pyramid, frame_pyramid):
+    wa = int(WINDOW_AMT / (2 ** NUM_PYR))
+    region_indices = [0, (frame_pyramid[-1].shape[0] - face_pyramid[-1].shape[0]) / wa,
+                      0, (frame_pyramid[-1].shape[1] - face_pyramid[-1].shape[1]) / wa]
+    for pyr_index in reversed(range(NUM_PYR+1)):
+      res = self.compute_ssd(frame_pyramid[pyr_index],
+                             face_pyramid[pyr_index],
+                             2 ** pyr_index,
+                             region_indices)
+      if res is None:
+        break
+      best_i, best_j = res
+      region_indices = [best_i - 1, best_i + 1,
+                        best_j - 1, best_j + 1]
+    return best_i, best_j
 
   def compute_ssd(self, frame, face, scaleAmt, region_indices):
     wa = int(WINDOW_AMT / scaleAmt)
