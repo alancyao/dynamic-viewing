@@ -53,7 +53,7 @@ class FacialRecognition:
 
   def calibrate(self):
     self.cap = cv2.VideoCapture(0)
-    print "PLace face 1 ft from camera. When face is visible, press Enter to continue."
+    print "Place face 1 ft from camera. When face is visible, press Enter to continue."
     while self.cap.isOpened():
       ret, frame = self.cap.read()
       if not ret:
@@ -113,18 +113,18 @@ class FacialRecognition:
   def get_rotation(self):
     center = self.get_face()
     disp = center - self.start_center
-    rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi)  #change to actual face dist
+    rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi) # change to actual face dist
     return rot
 
   def determine_best_shift(self, face_pyramid, frame_pyramid):
     wa = int(WINDOW_AMT / (2 ** NUM_PYR))
     region_indices = [0, (frame_pyramid[-1].shape[0] - face_pyramid[-1].shape[0]) / wa,
-        0, (frame_pyramid[-1].shape[1] - face_pyramid[-1].shape[1]) / wa]
+                      0, (frame_pyramid[-1].shape[1] - face_pyramid[-1].shape[1]) / wa]
     for pyr_index in reversed(range(NUM_PYR+1)):
       res = self.compute_ssd(frame_pyramid[pyr_index],
-          face_pyramid[pyr_index],
-          2 ** pyr_index,
-          region_indices)
+                             face_pyramid[pyr_index],
+                             2 ** pyr_index,
+                             region_indices)
       if res is None:
         break
       best_i, best_j = res
