@@ -11,7 +11,7 @@ DISP_SCALE = 0.7
 AVERAGE_FACE_WIDTH = 250
 START_FACE_DIST = 310
 RESCALING_FACTORS = [0.5, 1, 1.5]
-ROT_AMTS = np.linspace(-45, 45, num=3)
+ROT_AMTS = [0] #np.linspace(-45, 45, num=3)
 
 
 class WebcamImageGetter:
@@ -126,9 +126,8 @@ class FacialRecognition:
     rot_ssds = {}
     for i, face_pyramid in enumerate(self.rotated_face_pyramids):
       res = self.determine_best_shift(face_pyramid, frame_pyramid)
-      best_i, best_j, best_ssd = res
-      rot_ssds[i] = (1.0 / best_ssd, best_i, best_j, np.array(face_pyramid[0].shape))
-    _, best_i, best_j, _ = rot_ssds[1]
+      rot_best_i, rot_best_j, best_ssd = res
+      rot_ssds[i] = (1.0 / best_ssd, rot_best_i, rot_best_j, np.array(face_pyramid[0].shape))
     total = sum([v[0] for v in rot_ssds.values()])
     interp_rot = sum([v[0] / total * ROT_AMTS[k] for k, v in rot_ssds.items()])
     print "Interpolated rot: ", interp_rot
