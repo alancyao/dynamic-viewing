@@ -43,7 +43,7 @@ class FacialRecognition:
     while True:
       best_i, best_j, frame, interp_shape = self.get_face()
       # Display bounding box
-      cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + interp_shape[1], WINDOW_AMT*best_i + interp_shape[0]), color=(255, 0, 0), thickness=2)
+      cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
       cv2.imshow("frame", frame)
       if cv2.waitKey(1) & 0xFF == 10:
         cv2.destroyWindow("frame")
@@ -96,23 +96,11 @@ class FacialRecognition:
     ssds = {}
     for i, face_pyramid in enumerate(self.face_pyramids):
       res = self.determine_best_shift(face_pyramid, frame_pyramid)
-      if res is None:
-          print "No face detected."
-          return self.best_i, self.best_j, frame, self.interp_shape
       best_i, best_j, best_ssd = res
-      ssds[i] = (best_ssd * self.scaled_weights[i], best_i, best_j, np.array(face_pyramid[0].shape))
-    best_ssd, best_i, best_j, best_shape = ssds[1]
-    print ssds
-    if ssds[0][0] < ssds[2][0]:
-      print "Using small detector."
-      sbest_ssd, sbest_i, sbest_j, sbest_shape = ssds[0]
-    else:
-      print "Using large detector."
-      sbest_ssd, sbest_i, sbest_j, sbest_shape = ssds[2]
-    print "Interpolated shape: ", map(int, best_ssd / (best_ssd + sbest_ssd) * sbest_shape + \
-                                        sbest_ssd / (best_ssd + sbest_ssd) * best_shape)
-    interp_shape = best_shape
-    self.best_i, self.best_j, self.interp_shape = best_i, best_j, interp_shape
+      ssds[i] = (1.0 / (best_ssd * self.scaled_weights[i]), best_i, best_j, np.array(face_pyramid[0].shape))
+    best_i, best_j = ssds[1][1], ssds[1][2]
+    total = sum([v[0] for v in ssds.values()])
+    interp_shape = sum([v[0] / total * v[3] for v in ssds.values()])
     return best_i, best_j, frame, interp_shape
 
   def get_rotation(self):
@@ -122,7 +110,7 @@ class FacialRecognition:
     rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi) # change to actual face dist
 
     # Display image (for fun)
-    cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + interp_shape[1], WINDOW_AMT*best_i + interp_shape[0]), color=(255, 0, 0), thickness=2)
+    cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h), color=(255, 0, 0), thickness=2)
     cv2.imshow("frame", frame)
     cv2.waitKey(1)
     return np.array(rot)
@@ -136,8 +124,6 @@ class FacialRecognition:
                              face_pyramid[pyr_index],
                              2 ** pyr_index,
                              region_indices)
-      if res == "no face":
-        return None
       if res is None:
         break
       best_i, best_j, tmp_ssd = res
@@ -161,8 +147,6 @@ class FacialRecognition:
       return None
     best_i, best_j = min(ssds, key=lambda k: ssds[k])
     z_score = (ssds[(best_i, best_j)] - np.mean(ssds.values())) / np.std(ssds.values()) if np.std(ssds.values()) != 0 else 0
-    # if z_score == float("nan") or z_score >= -1:
-    #   return "no face"
     return best_i, best_j, ssds[(best_i, best_j)]
 
 def main():
