@@ -13,19 +13,20 @@ START_FACE_DIST = 310
 
 
 class WebcamImageGetter:
-    def __init__(self):
-        self.currentFrame = None
-        self.capture = cv2.VideoCapture(0) #Put in correct capture number here
+  def __init__(self):
+    self.currentFrame = None
+    self.capture = cv2.VideoCapture(0)
+    self.keep_going = True
 
-    def start(self):
-        Thread(target=self.updateFrame, args=()).start()
+  def start(self):
+    Thread(target=self.updateFrame, args=()).start()
 
-    def updateFrame(self):
-        while(True):
-            ret, self.currentFrame = self.capture.read()
+  def updateFrame(self):
+    while self.keep_going:
+      ret, self.currentFrame = self.capture.read()
 
-    def getFrame(self):
-        return self.currentFrame
+  def getFrame(self):
+    return self.currentFrame
 
 class FacialRecognition:
   def run(self):
@@ -63,7 +64,10 @@ class FacialRecognition:
       best_i, best_j = self.determine_best_shift(face_pyramid, frame_pyramid)
       cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + w, WINDOW_AMT*best_i + h), color=(255, 0, 0), thickness=2)
       cv2.imshow("frame", frame)
-      cv2.waitKey(5)
+      if cv2.waitKey(1) & 0xFF == 10:
+        cv2.destroyWindow("frame")
+        self.ig.keep_going = False
+        break
 
   def calibrate(self):
     self.ig = WebcamImageGetter()
