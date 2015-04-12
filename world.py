@@ -502,6 +502,8 @@ class Window(pyglet.window.Window):
         self.ext_rotations = [np.array((0, 0))] * 5
         self.ext_trans = [0] * 5
         self.ext_viewrots = [0] * 5
+        self.do_rot = False
+        self.do_scale = False
 
         if USE_FACE:
             self.detect_ctr = 1
@@ -598,7 +600,7 @@ class Window(pyglet.window.Window):
         if USE_FACE:
             self.detect_ctr = (self.detect_ctr + 1) % DETECT_PER_FRAMES
             if self.detect_ctr == 0:
-                ext_rotation, ext_tran, ext_viewrot = self.f.get_transforms()
+                ext_rotation, ext_tran, ext_viewrot = self.f.get_transforms(self.do_rot, self.do_scale)
                 self.ext_rotations[self.smoothing_ind] = ext_rotation
                 self.ext_trans[self.smoothing_ind] = ext_tran
                 self.ext_viewrots[self.smoothing_ind] = ext_viewrot
@@ -750,6 +752,12 @@ class Window(pyglet.window.Window):
             self.strafe[1] -= 1
         elif symbol == key.D:
             self.strafe[1] += 1
+        elif symbol == key.T:
+            self.do_scale = not self.do_scale
+            self.ext_trans = [0] * 5
+        elif symbol == key.R:
+            self.do_rot = not self.do_rot
+            self.ext_viewrots = [0] * 5
         elif symbol == key.SPACE:
             if self.dy == 0:
                 self.dy = JUMP_SPEED
@@ -927,6 +935,7 @@ def setup():
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
     setup_fog()
+    print 'R to toggle rotation, T to toggle forward/backward movement'
 
 def main():
     window = Window(width=800, height=600, caption='Pyglet', resizable=True)

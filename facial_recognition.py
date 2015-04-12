@@ -11,7 +11,7 @@ DISP_SCALE = 0.7
 AVERAGE_FACE_WIDTH = 250
 START_FACE_DIST = 310
 RESCALING_FACTORS = [0.5, 1, 1.5]
-ROT_AMTS = [0] #np.linspace(-45, 45, num=3)
+ROT_AMTS = np.linspace(-45, 45, num=3)
 
 
 class WebcamImageGetter:
@@ -107,16 +107,18 @@ class FacialRecognition:
     print "Tracking face...press Enter to quit."
     print "Red: close, green: far, blue: in between."
 
-  def get_face(self):
+  def get_face(self, do_rot=True, do_scale=True):
     frame = self.ig.getFrame()
     frame_pyramid = list(tf.pyramid_gaussian(frame, max_layer=NUM_PYR, downscale=2))
 
     scale_ssds = {}
     for i, face_pyramid in enumerate(self.scaled_face_pyramids):
+      if not do_scale and i != 1:
+          continue
       res = self.determine_best_shift(face_pyramid, frame_pyramid)
       best_i, best_j, best_ssd = res
       scale_ssds[i] = (1.0 / (best_ssd * self.scaled_weights[i]), best_i, best_j, np.array(face_pyramid[0].shape))
-    if len(scale_ssds) == 3:
+    if len(scale_ssds) == 3 or not do_scale:
       best_i, best_j = scale_ssds[1][1], scale_ssds[1][2]
     else:
       best_i, best_j = scale_ssds[0][1], scale_ssds[0][2]
@@ -125,17 +127,18 @@ class FacialRecognition:
 
     rot_ssds = {}
     for i, face_pyramid in enumerate(self.rotated_face_pyramids):
+      if not do_rot and i != 1:
+          continue
       res = self.determine_best_shift(face_pyramid, frame_pyramid)
       rot_best_i, rot_best_j, best_ssd = res
       rot_ssds[i] = (1.0 / best_ssd, rot_best_i, rot_best_j, np.array(face_pyramid[0].shape))
     total = sum([v[0] for v in rot_ssds.values()])
     interp_rot = sum([v[0] / total * ROT_AMTS[k] for k, v in rot_ssds.items()])
-    print "Interpolated rot: ", interp_rot
 
     return best_i, best_j, frame, interp_shape, interp_rot
 
-  def get_transforms(self):
-    best_i, best_j, frame, interp_shape, interp_rot = self.get_face()
+  def get_transforms(self, do_rot=True, do_scale=True):
+    best_i, best_j, frame, interp_shape, interp_rot = self.get_face(do_rot, do_scale)
     # Rotation amount
     if self.init_interp_shape is None:
       self.init_interp_shape = interp_shape
