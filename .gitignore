@@ -3,3 +3,6 @@
 *.pdf
 *.pyc
 *.gz
+*.bbl
+*.blg
+*.dvi
