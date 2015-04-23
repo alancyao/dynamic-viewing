@@ -177,7 +177,7 @@ We evaluate performance in a simulated computer game environment loosely based
 on Minecraft. We feed our webcam image through Algorithm 1 for each rotation
 value and each scale value to determine the orientation and distance amounts,
 and the window position which minimizes SSD for these amounts. Then, we use this
-information to update the rendering engine as previous described. In our experimentation,
+information to update the rendering engine as previously described. In our experimentation,
 we used rotation amounts of -45, 0, and 45 degrees, and scale amounts of 0.5, 1, and 1.5,
 for the interpolation. Furthermore, we used a pyramid size of 3 (where the bottom
 layer is simply the original image) and a downsampling factor of 2. Our window size
@@ -202,7 +202,8 @@ The need for fast tracking in an online setting is well-understood and has utili
 in several applications of computer vision. We developed and evaluated performance
 of an algorithm which uses multiscale SSD template matching and offers invariance to
 capture orientation and distance information. We further demonstrated the applicability of our
-algorithm by illustrating real-time performance in a simulated computer game environment.
+algorithm by illustrating real-time performance in a simulated computer game environment,
+and compared its performance to that of OpenCV.
 
 {\small
 \bibliographystyle{ieee}
