@@ -1,0 +1,213 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{iccv}
+\usepackage{times}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\usepackage[breaklinks=true,bookmarks=false]{hyperref}
+
+\iccvfinalcopy % *** Uncomment this line for the final submission
+
+\begin{document}
+
+%%%%%%%%% TITLE
+\title{Dynamic Viewing\\CS280 Final Project}
+
+\author{Rohan Chitnis\\
+23464697\\
+{\tt\small ronuchit@berkeley.edu}
+\and
+Alan Yao\\
+23775635\\
+{\tt\small alanyao@berkeley.edu}
+\and
+Alexander Chu\\
+23460953\\
+{\tt\small alex.p.chu@berkeley.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+  Fast online tracking algorithms are fundamental to many real-world computer
+  vision applications, such as video segmentation and human-computer interaction.
+  We develop a multiscale sum-of-squared-displacements (SSD) template matching algorithm for
+  tracking a face in a live video feed. Furthermore, we build invariance
+  to rotation and scale directly into our system using linear interpolation on heuristic
+  score functions. We evaluate performance through comparison with OpenCV's tracking
+  algorithms based on Haar Cascades and show that our system performs TODO: how
+  much better does it perform?
+\end{abstract}
+
+\section{Introduction}
+3d graphics on monitors are unrealistic because they assume a center of projection
+some distance away from the center of the screen. That is, they assume the viewer
+is at a certain fixed position (usually in front of the middle of the screen) when
+generating the projection. If the position of the viewer is known, however, the
+center of projection can be set to match the viewer's point of view. As an analogy,
+looking at the monitor will thus be much akin to looking through a window: the observed
+scene undergoes certain projective transformations based on where the viewer is standing
+relative to the window.\\
+
+We develop an object recognition algorithm to track the position of any object
+during a live webcam video feed. In order to achieve online tracking, which necessitates
+quick computations, we use multiscale SSD template matching to determine the location of
+the object. Additionally, we incorporate rotation and scale invariance, which allows us to
+compute orientation and distance, and update the scene accordingly. We validate our
+approach in a simulated computer game environment and TODO: describe the scenarios
+we use for experimentation.
+
+\section{Related Work}
+TODO: can't do this till we have experiments
+
+\section{Approach}
+
+\subsection*{Multiscale SSD for Tracking}
+SSD$(I, J)$ of two images $I$ and $J$ is computed as
+$$\displaystyle\sum_{i, j}(I_{ij} - J_{ij})^{2}$$
+
+At the heart of our system is a multiscale SSD template matcher, which operates as follows.
+Initially, the user is asked to place his or her face inside an axis-aligned square window of size
+$m$ by $m$, and the image inside this window is then used as a template for the online
+portion of the tracking. A naive SSD-based approach would then proceed by sliding a window of
+size $m$ by $m$ across the online image captured by the webcam, performing SSD at each window,
+and then returning the window position corresponding to the minimum SSD. However, our initial
+experimentation found this approach to be much too slow (enabling us to only reach about 10 fps,
+which would have deproved upon introducing rotation and scale invariance).\\
+
+In order to remedy this, we instead operate on multiple scales of both the online image and the
+template image, by constructing a Gaussian pyramid and running the full sliding window for only
+the topmost level of the pyramid. Then, once we have found the optimal window position which
+minimizes SSD here, we have a small range within which we may search the next lowest level of
+the pyramid. This continues until we have found the optimal window position for our original image.
+This algorithm requires keeping track of the SSD search range at the current pyramid level.
+Pseudocode for our implementation is described in Algorithm 1.\\
+
+\begin{algorithm}
+ \caption{Multiscale SSD sliding window for tracking.}
+ \begin{algorithmic}[1]
+  \Procedure{DetermineBestShift}{ImagePyramid, TemplatePyramid}
+  \State $m \leftarrow$ window side length
+  \State $N \leftarrow$ pyramid size
+  \State wa $\leftarrow \lfloor m / 2^{N} \rfloor$
+  \State tip $\leftarrow$ Topmost(ImagePyramid)
+  \State ttp $\leftarrow$ Topmost(TemplatePyramid)
+  \State r\_inds $\leftarrow$ (0, (tip.height - ttp.height) / wa,\\\hspace{57pt}0, (tip.width - ttp.width) / wa)
+  \For {$i$ = $N$ \textbf{downto} 1}
+     \State cip $\leftarrow$ ImagePyramid[$i$]
+     \State ctp $\leftarrow$ TemplatePyramid[$i$]
+     \State best\_i, best\_j $\leftarrow$ DoSSD(cip, ctp, $2^{i}$, r\_inds)
+     \State r\_inds $\leftarrow$ (best\_i - 1, best\_i + 1,\\\hspace{73pt}best\_j - 1, best\_j + 1)
+  \EndFor
+  \State \Return best\_i, best\_j
+  \EndProcedure
+ \end{algorithmic}
+  \begin{algorithmic}[1]
+  \Procedure{DoSSD}{Image, Template, scaleAmt, r\_inds}
+  \State $m \leftarrow$ window side length
+  \State wa $\leftarrow \lfloor m / \text{scaleAmt} \rfloor$
+  \State w $\leftarrow$ Template.width
+  \State h $\leftarrow$ Template.height
+  \For {$i$ = r\_inds[0] \textbf{to} r\_inds[1]}
+    \For {$j$ = r\_inds[2] \textbf{to} r\_inds[3]}
+    \State cand\_roi $\leftarrow$ Image[wa*i:wa*i+h,\\\hspace{122pt}wa*j:wa*j+w]
+    \State calculate SSD(Template, cand\_roi)
+    \EndFor
+  \EndFor
+  \State \Return $i$, $j$ having minimum SSD
+  \EndProcedure
+ \end{algorithmic}
+\end{algorithm}
+
+Some clarifications of Algorithm 1 are in order. The variable \texttt{wa}
+represents the window size at the current pyramid level. The variable \texttt{r\_inds}
+is a tuple of the form (start $i$, end $i$, start $j$, end $j$), and it keeps
+track of the region of the online image within which the SSD must be computed
+at this level of the pyramid, in units of window size (this is why it gets
+multiplied by \texttt{wa} in the calculation of the candidate region, at line 8 of
+DoSSD). Note that the algorithm assumes a downsampling factor of 2 at each level
+of the two pyramids.
+
+\subsection*{Building Invariance}
+Algorithm 1, multiscale SSD, only provides translational invariance between the
+template image and the online image. However, this is limited in utility, so we
+extend the algorithm to provide rotational and scale invariance, and in the
+process develop a method of determining the orientation and scale both quickly
+and accurately. If one had infinite computational resources, one would discretize
+each of these quantities into a large number of buckets and run Algorithm 1 for
+the template at each quantity. For example, one could run Algorithm 1 on the template
+image rotated each degree from -45 to 45, and take the orientation which minimizes SSD.
+However, this is clearly not scalable down to a practical setting.\\
+
+Instead, we propose the following approach. For orientation, we run Algorithm 1
+on the template image rotated to a small number of preset orientations, then based on the SSD value
+of each of these, we perform linear interpolation to estimate the current orientation.
+The interpolation weights are based on the SSD values: since a lower SSD means we want
+to give this rotation amount a higher weight, we use the multiplicative inverse of the
+SSD for the interpolation weights. The general formula then becomes
+$$rot = \displaystyle\sum_{k}(\dfrac{1.0 / SSD_{k}}{\sum_{k}(1.0 / SSD_{k})} * rots[k])$$
+where $rots$ is an array that holds all the rotation amounts in degrees,
+the summation is over the indices of this array, and $SSD_{k}$ represents the SSD value
+corresponding to the rotation amount $rots[k]$.
+
+Similarly,
+$$scale = \displaystyle\sum_{k}(\dfrac{1.0 / SSD_{k}}{\sum_{k}(1.0 / SSD_{k})} * scale[k])$$
+
+Note that this requires storage of online pyramids and template pyramids corresponding
+to each of the rotation amounts and scale amounts.
+
+\subsection*{Rendering Engine Updates}
+TODO: need to put stuff about calibration and how you get focal length from
+it here, including all the assumptions about average face width that we made,
+also need to put stuff about kalman filter smoothing here, also all the update
+equations given the orientation, scale, and window position
+
+NOTE: avoid using specific numbers here. describe the specific numbers in
+the next section: Setting
+
+\section{Experiments}
+
+\subsection*{Setting}
+We evaluate performance in a simulated computer game environment loosely based
+on Minecraft. We feed our webcam image through Algorithm 1 for each rotation
+value and each scale value to determine the orientation and distance amounts,
+and the window position which minimizes SSD for these amounts. Then, we use this
+information to update the rendering engine as previously described. In our experimentation,
+we used rotation amounts of -45, 0, and 45 degrees, and scale amounts of 0.5, 1, and 1.5,
+for the interpolation. Furthermore, we used a pyramid size of 3 (where the bottom
+layer is simply the original image) and a downsampling factor of 2. Our window size
+was 8 pixels.
+
+Our development environment was Python 2.7, and our rendering engine was Pyglet.
+TODO: add screenshots showing that things work
+
+One issue we noted is that the SSD algorithm is not good at detecting whether the template
+image is in the online image or not (it is only good at tracking the image). For this
+purpose, we run an SVM which tells us whether the online image contains the template image,
+and if it doesn't, smoothly update the rendering to avoid jerkiness.
+
+\subsection*{Results}
+TODO: describe numeric results
+
+\subsection*{Evaluation}
+TODO: discuss comparison with opencv
+
+\section{Conclusion}
+The need for fast tracking in an online setting is well-understood and has utility
+in several applications of computer vision. We developed and evaluated performance
+of an algorithm which uses multiscale SSD template matching and offers invariance to
+capture orientation and distance information. We further demonstrated the applicability of our
+algorithm by illustrating real-time performance in a simulated computer game environment,
+and compared its performance to that of OpenCV.
+
+{\small
+\bibliographystyle{ieee}
+\bibliography{egbib}
+}
+
+\end{document}
