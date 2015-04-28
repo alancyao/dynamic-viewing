@@ -2,9 +2,15 @@ import cv2
 from threading import Thread, Lock
 from facial_recognition import FacialRecognition, WINDOW_AMT
 from kalman_filter import KalmanFilter1, KalmanFilter2
+import numpy as np
+
+NUM_PYR = 2
+WINDOW_AMT = 8
+assert (float(WINDOW_AMT) / (2 ** NUM_PYR)).is_integer(), "WINDOW_AMT must remain an integer at all pyramid levels."
+START_FACE_DIST = 310
 
 class FacialRecognition2:
-    def __init__(self, kalman_filter, do_rot=True, do_scale=True):
+    def __init__(self, kalman_filter=KalmanFilter1(0.1,0.1), do_rot=True, do_scale=True):
         self.stop = False
         self.facial_recognition = FacialRecognition()
         self.facial_recognition.calibrate()
@@ -19,16 +25,18 @@ class FacialRecognition2:
             pass
     def calibrate(self):
         self.facial_recognition.calibrate()
+
     def end(self):
         self.stop = True
+        self.facial_recognition.end()
+
     def run(self):
         while True:
-            best_i, best_j, frame, interp_shape, interp_rot, ztrans = self.get_face()
-            cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.facial_recognition.w, WINDOW_AMT*best_i + self.facial_recognition.h), color=(255,255,255), thickness=2)
-            cv2.imshow("frame", frame)
+            self.get_face()
             if cv2.waitKey(1) & 0xFF == 10:
                 cv2.destroyWindow("frame")
-                self.ig.keep_going = False
+                self.facial_recognition.ig.keep_going = False
+                cv2.waitKey(1)
                 break
 
     def start_loop(self):
@@ -38,7 +46,9 @@ class FacialRecognition2:
             with self.lock:
                 self.params = (best_i, best_j, frame, interp_shape, interp_rot, ztrans)
             self.ready = True
-    def get_face(self):
+
+    def get_face(self, do_rot=True, do_scale=True):
+        self.do_rot = do_rot; self.do_scale = do_scale
         with self.lock:
             if self.params is not None:
                 (best_i, best_j, frame, interp_shape, interp_rot, ztrans) = self.params
@@ -50,10 +60,22 @@ class FacialRecognition2:
                 coords = None
         self.kalman_filter.Update(coords)
         best_i, best_j, ztrans = self.kalman_filter.Pos()
-        return int(best_i), int(best_j), frame, interp_shape, interp_rot, ztrans
+        best_i = int(best_i); best_j = int(best_j)
+        cv2.rectangle(frame, (WINDOW_AMT*best_j, WINDOW_AMT*best_i), (WINDOW_AMT*best_j + self.facial_recognition.w, WINDOW_AMT*best_i + self.facial_recognition.h), color=(255,255,255), thickness=2)
+        cv2.imshow("frame", frame)
+        cv2.waitKey(1)
+        return best_i, best_j, frame, interp_shape, interp_rot, ztrans
+
+    def get_transforms(self, do_rot=True, do_scale=True, do_trans=True):
+        best_i, best_j, frame, interp_shape, interp_rot, ztrans = self.get_face(do_rot, do_scale)
+        # Rotation amount
+        center = (np.array((WINDOW_AMT*best_j, WINDOW_AMT*best_i)) + np.array((WINDOW_AMT*best_j + self.facial_recognition.w, WINDOW_AMT*best_i + self.facial_recognition.h))) / 2.0
+        disp = center - self.facial_recognition.start_center
+        rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi) # change to actual face dist
+        return np.array(rot), ztrans, interp_rot
 
 def main():
-    f = FacialRecognition2(KalmanFilter2(0.1,0.1))
+    f = FacialRecognition2(KalmanFilter1(0.1,0.1))
     f.run()
 
 if __name__ == "__main__":
