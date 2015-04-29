@@ -162,11 +162,15 @@ Note that this requires storage of online pyramids and template pyramids corresp
 to each of the rotation amounts and scale amounts.
 
 \subsection*{Rendering Engine Updates}
-TODO: need to put stuff about calibration and how you get focal length from
-it here, including all the assumptions about average face width that we made,
-also need to put stuff about kalman filter smoothing here, also all the update
-equations given the orientation, scale, and window position
+We ask the user to start with their face approximately 1 foot away from the screen. This allows us to estimate the focal length $f$ of the camera, using 
+$$f = width_{face} * \frac{start\ distance}{average\ face\ width}$$
+This also allows us to get $x_c,y_c$, the starting center point of the user's face to base translations off of.
+Then, for some frame capture, we get $x_i, x_j, zrot_{interp}, scale_{interp}$, where the zrot refers to the rotation amount of the face around the center of the face, and $scale_{interp}$ refers to the width of the scaled bounding box. From these parameters we can calculate the updated camera transforms as:
+$$Z = f - f * \frac{scale_{interp}}{start_width_{face}}$$
+$$x_{rot}, y_{rot} = tan^{-1}(\frac{(x_i,y_i)-(x_c,y_c)}{Z})$$
+We rotate around the x and y axes by $x_{rot}, y_{rot}$ and around the viewing axis by $zrot_{interp}$. We translate the camera along the viewing axis by $Z$.
 
+TODO ALEX: need to put stuff about kalman filter smoothing here, 
 NOTE: avoid using specific numbers here. describe the specific numbers in
 the next section: Setting
 
@@ -192,10 +196,56 @@ purpose, we run an SVM which tells us whether the online image contains the temp
 and if it doesn't, smoothly update the rendering to avoid jerkiness.
 
 \subsection*{Results}
-TODO: describe numeric results
+We achieve acceptable error rates for scale distance and exact rotation of the face as shown in the figures.
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{distance_error.jpg}
+\caption{Scale distance error rates\label{overflow}}
+\end{figure}
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{rotation_error.jpg}
+\caption{Rotation error rates \label{overflow}}
+\end{figure}
+In practice, due to smoothing and user perception, the error between exact facial rotation/scale and the computed rotation/scale is not noticeable. Additionally, the algorithm always detects the bounding box of the face correctly. This ensures that the core functionality is not affected.
 
 \subsection*{Evaluation}
-TODO: discuss comparison with opencv
+The OpenCV haar face cascader achieves similar performance to a naive, single-threaded implementation of our multi-scale ssd matcher along with the rotational and scale pyramids.
+\begin{center}
+    \begin{tabular}{| l | l | l |}
+    \hline
+    \         & SSD & OpenCV Haar Cascade \\ \hline
+    Face detections / second & 6.28 & 6.15 \\  \hline
+    \end{tabular}
+\end{center}
+
+However, we achieve noticably higher accuracy on rotated faces, while maintaining the same accuracy on scaled and translated faces. The SSD method is also invariant to backgrounds; the OpenCV Haar cascader doesn't work against a light background or one with a strong background light.
+
+\begin{center}
+    \begin{tabular}{| l | l | l |}
+    \hline
+    \                                                 & OpenCV & SSD          \\ \hline
+     With background light                  & 0\%       & 100\%       \\ \hline 
+     Rotating -45 to 45 degrees           &  20.2\%  & 98.8\%      \\ \hline                 
+     Scaling .5 to 2 from original scale & 100\%    & 99.6\%                 \\  \hline
+\end{tabular}
+\end{center}
+
+After integration into the rendering engine, we can measure the performance of the various methods using frames per second.
+
+\begin{center}
+    \begin{tabular}{| l | l |}
+    \hline
+     Method                                                 & FPS       \\ \hline
+     Translation only                                    & 35           \\ \hline 
+     Translation + scaling                             &  29           \\ \hline      
+    Translation + rotation                            & 28             \\ \hline           
+    Translation + scaling + rotation              & 23             \\  \hline
+    All, Kalman Filter, background process    & 80             \\   \hline
+\end{tabular}
+\end{center}
+
+As seen above, by using a kalman filter to smooth movements, polling less frequently, and farming out the detection process to a background thread, we can achieve up to 80 fps. The game runs at a negigible FPS drop from without the facial recognition.
 
 \section{Conclusion}
 The need for fast tracking in an online setting is well-understood and has utility
