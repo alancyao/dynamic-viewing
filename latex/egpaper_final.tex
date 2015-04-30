@@ -37,11 +37,12 @@ Alexander Chu\\
   Fast online tracking algorithms are fundamental to many real-world computer
   vision applications, such as video segmentation and human-computer interaction.
   We develop a multiscale sum-of-squared-displacements (SSD) template matching algorithm for
-  tracking a face in a live video feed. Furthermore, we build invariance
+  tracking an object in a live video feed. Furthermore, we build invariance
   to rotation and scale directly into our system using linear interpolation on heuristic
   score functions. We evaluate performance through comparison with OpenCV's tracking
-  algorithms based on Haar Cascades and show that our system performs TODO: how
-  much better does it perform?
+  algorithms based on Haar cascades and show that our system performs comparably to or
+  better than OpenCV in all accuracy metrics, with a considerable improvement to
+  lighting and background invariance.
 \end{abstract}
 
 \section{Introduction}
@@ -54,16 +55,13 @@ looking at the monitor will thus be much akin to looking through a window: the o
 scene undergoes certain projective transformations based on where the viewer is standing
 relative to the window.\\
 
-We develop an object recognition algorithm to track the position of any object
+We develop an algorithm to track the position of an object
 during a live webcam video feed. In order to achieve online tracking, which necessitates
 quick computations, we use multiscale SSD template matching to determine the location of
 the object. Additionally, we incorporate rotation and scale invariance, which allows us to
 compute orientation and distance, and update the scene accordingly. We validate our
-approach in a simulated computer game environment and TODO: describe the scenarios
-we use for experimentation.
-
-\section{Related Work}
-TODO: can't do this till we have experiments
+approach in a simulated computer game environment and through experimental comparisons
+with OpenCV's implementation of facial tracking using Haar cascades.
 
 \section{Approach}
 
@@ -73,12 +71,12 @@ $$\displaystyle\sum_{i, j}(I_{ij} - J_{ij})^{2}$$
 
 At the heart of our system is a multiscale SSD template matcher, which operates as follows.
 Initially, the user is asked to place his or her face inside an axis-aligned square window of size
-$m$ by $m$, and the image inside this window is then used as a template for the online
+$m$ by $m$. The image inside this window is then used as a template for the online
 portion of the tracking. A naive SSD-based approach would then proceed by sliding a window of
 size $m$ by $m$ across the online image captured by the webcam, performing SSD at each window,
-and then returning the window position corresponding to the minimum SSD. However, our initial
-experimentation found this approach to be much too slow (enabling us to only reach about 10 fps,
-which would have deproved upon introducing rotation and scale invariance).\\
+and returning the window position corresponding to the minimum SSD. However, our initial
+experimentation found this approach to be much too slow (enabling us to only reach about 10 FPS
+in an online setting, which would have deproved upon introducing rotation and scale invariance).\\
 
 In order to remedy this, we instead operate on multiple scales of both the online image and the
 template image, by constructing a Gaussian pyramid and running the full sliding window for only
@@ -126,7 +124,7 @@ Pseudocode for our implementation is described in Algorithm 1.\\
 
 Some clarifications of Algorithm 1 are in order. The variable \texttt{wa}
 represents the window size at the current pyramid level. The variable \texttt{r\_inds}
-is a tuple of the form (start $i$, end $i$, start $j$, end $j$), and it keeps
+is a tuple of the form (start $i$, end $i$, start $j$, end $j$); it keeps
 track of the region of the online image within which the SSD must be computed
 at this level of the pyramid, in units of window size (this is why it gets
 multiplied by \texttt{wa} in the calculation of the candidate region, at line 8 of
@@ -137,12 +135,12 @@ of the two pyramids.
 Algorithm 1, multiscale SSD, only provides translational invariance between the
 template image and the online image. However, this is limited in utility, so we
 extend the algorithm to provide rotational and scale invariance, and in the
-process develop a method of determining the orientation and scale both quickly
+process we develop a method of determining the orientation and scale both quickly
 and accurately. If one had infinite computational resources, one would discretize
 each of these quantities into a large number of buckets and run Algorithm 1 for
-the template at each quantity. For example, one could run Algorithm 1 on the template
+the template at each quantity. For example, one could imagine running Algorithm 1 on the template
 image rotated each degree from -45 to 45, and take the orientation which minimizes SSD.
-However, this is clearly not scalable down to a practical setting.\\
+However, this is clearly not computationally feasible.\\
 
 Instead, we propose the following approach. For orientation, we run Algorithm 1
 on the template image rotated to a small number of preset orientations, then based on the SSD value
@@ -150,127 +148,127 @@ of each of these, we perform linear interpolation to estimate the current orient
 The interpolation weights are based on the SSD values: since a lower SSD means we want
 to give this rotation amount a higher weight, we use the multiplicative inverse of the
 SSD for the interpolation weights. The general formula then becomes
-$$rot = \displaystyle\sum_{k}(\dfrac{1.0 / SSD_{k}}{\sum_{k}(1.0 / SSD_{k})} * rots[k])$$
-where $rots$ is an array that holds all the rotation amounts in degrees,
+$$rot = \displaystyle\sum_{k}(\dfrac{1.0 / SSD_{k}}{\sum_{k'}(1.0 / SSD_{k'})} * rots[k])$$
+where $rots$ is an array that holds all the preset rotation amounts in degrees,
 the summation is over the indices of this array, and $SSD_{k}$ represents the SSD value
 corresponding to the rotation amount $rots[k]$.
 
 Similarly,
-$$scale = \displaystyle\sum_{k}(\dfrac{1.0 / SSD_{k}}{\sum_{k}(1.0 / SSD_{k})} * scale[k])$$
+$$scale = \displaystyle\sum_{k}(\dfrac{1.0 / SSD_{k}}{\sum_{k'}(1.0 / SSD_{k'})} * scale[k])$$
 
 Note that this requires storage of online pyramids and template pyramids corresponding
-to each of the rotation amounts and scale amounts.
+to each of the preset rotation amounts and scale amounts.
 
 \subsection*{Rendering Engine Updates}
-We ask the user to start with their face approximately 1 foot away from the screen. This allows us to estimate the focal length $f$ of the camera, using 
+We ask the user to start with his or her face approximately 1 foot away from the screen. This allows us to estimate the focal length $f$ of the camera, using
 $$f = width_{face} * \frac{start\ distance}{average\ face\ width}$$
-This also allows us to get $x_c,y_c$, the starting center point of the user's face to base translations off of.
-Then, for some frame capture, we get $x_i, x_j, zrot_{interp}, scale_{interp}$, where the zrot refers to the rotation amount of the face around the center of the face, and $scale_{interp}$ refers to the width of the scaled bounding box. From these parameters we can calculate the updated camera transforms as:
-$$Z = f - f * \frac{scale_{interp}}{start_width_{face}}$$
+This also allows us to get $(x_c, y_c)$, the starting center point of the user's face off which we base translations.
+Then, for any online image (frame capture), we use the algorithms previously described to obtain $x_i, x_j, rot_{interp}, scale_{interp}$, where $rot_{interp}$ refers to the rotation amount of the face around the center of the face, and $scale_{interp}$ refers to the width of the scaled bounding box, which we always consider to be a square. From these parameters we can calculate the updated camera transforms as:
+$$Z = f - f \frac{scale_{interp}}{width_{window}}$$
 $$x_{rot}, y_{rot} = tan^{-1}(\frac{(x_i,y_i)-(x_c,y_c)}{Z})$$
-We rotate around the x and y axes by $x_{rot}, y_{rot}$ and around the viewing axis by $zrot_{interp}$. We translate the camera along the viewing axis by $Z$.
+We then rotate around the $x$ and $y$ axes by $x_{rot}, y_{rot}$ and around the viewing axis by $rot_{interp}$. We translate the camera along the viewing axis by $Z$.
 
 TODO ALEX: need to put stuff about kalman filter smoothing here, 
 NOTE: avoid using specific numbers here. describe the specific numbers in
-the next section: Setting
+the next section, named ``Setting''
 
 \section{Experiments}
 
 \subsection*{Setting}
 We evaluate performance in a simulated computer game environment loosely based
 on Minecraft. We feed our webcam image through Algorithm 1 for each rotation
-value and each scale value to determine the orientation and distance amounts,
-and the window position which minimizes SSD for these amounts. Then, we use this
+value and each scale value to determine the orientation and distance amounts as well as
+the window position which minimizes SSD for these amounts. Then, we use this
 information to update the rendering engine as previously described. In our experimentation,
 we used rotation amounts of -45, 0, and 45 degrees, and scale amounts of 0.5, 1, and 1.5,
 for the interpolation. Furthermore, we used a pyramid size of 3 (where the bottom
-layer is simply the original image) and a downsampling factor of 2. Our window size
-was 8 pixels.
+layer is simply the original image) and a downsampling factor of 2. Our window amount
+was 8, and we assumed the average face size to be 250 pixels.
 
 Our development environment was Python 2.7, and our rendering engine was Pyglet.
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{left_trans.jpg}
-\caption{Moving head to left \label{overflow}}
+\caption{Initial configuration of head.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{right_trans.jpg}
-\caption{Moving head to right\label{overflow}}
+\caption{Moving head to the left.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{forward.jpg}
-\caption{Moving head forward and left \label{overflow}}
+\caption{Moving head forward and to the right.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{back_away.jpg}
-\caption{Moving head back\label{overflow}}
+\caption{Moving head back.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{rotation_left.jpg}
-\caption{Rotating head left \label{overflow}}
+\caption{Rotating head right.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{rotation_right.jpg}
-\caption{Rotating head right \label{overflow}}
+\caption{Rotating head left.\label{overflow}}
 \end{figure}
 
 One issue we noted is that the SSD algorithm is not good at detecting whether the template
-image is in the online image or not (it is only good at tracking the image). For this
-purpose, we run an SVM which tells us whether the online image contains the template image,
+image is in the online image or not -- it is only good at tracking the image. For this
+purpose, we run an SVM (TODO: do we actually?) which tells us whether the online image contains the template image,
 and if it doesn't, smoothly update the rendering to avoid jerkiness.
 
 \subsection*{Results}
-We achieve acceptable error rates for scale distance and exact rotation of the face as shown in the figures.
+We achieve acceptable error rates for scale distance and exact rotation of the face as shown in Figures 1 through 6. In practice, due to smoothing and user perception, the error between exact facial rotation/scale and the computed rotation/scale is not noticeable. Additionally, the algorithm always detects the bounding box of the face correctly. This ensures that the core functionality is not affected.
+
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{distance_error.jpg}
-\caption{Scale distance error rates\label{overflow}}
+\caption{Scale (distance) error rates.\label{overflow}}
 \end{figure}
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{rotation_error.jpg}
-\caption{Rotation error rates \label{overflow}}
+\caption{Rotation error rates.\label{overflow}}
 \end{figure}
-In practice, due to smoothing and user perception, the error between exact facial rotation/scale and the computed rotation/scale is not noticeable. Additionally, the algorithm always detects the bounding box of the face correctly. This ensures that the core functionality is not affected.
 
 \subsection*{Evaluation}
-The OpenCV haar face cascader achieves similar performance to a naive, single-threaded implementation of our multi-scale ssd matcher along with the rotational and scale pyramids.
+The OpenCV facial Haar cascade classifier achieves similar performance to a naive, single-threaded implementation of our multiscale SSD matcher along with the rotation and scale Gaussian pyramids.
 \begin{center}
     \begin{tabular}{| l | l | l |}
     \hline
-    \         & SSD & OpenCV Haar Cascade \\ \hline
-    Face detections / second & 6.28 & 6.15 \\  \hline
+    \         & \textbf{SSD} & \textbf{OpenCV Haar cascade} \\ \hline
+    Face detections per second & 6.28 & 6.15 \\  \hline
     \end{tabular}
 \end{center}
 
-However, we achieve noticably higher accuracy on rotated faces, while maintaining the same accuracy on scaled and translated faces. The SSD method is also invariant to backgrounds; the OpenCV Haar cascader doesn't work against a light background or one with a strong background light.
+However, we achieve noticably higher accuracy on rotated faces, while maintaining the same accuracy on scaled and translated faces. The SSD method is also invariant to backgrounds; the OpenCV Haar cascader doesn't work against a light-colored background or one with strong lighting.
 
 \begin{center}
     \begin{tabular}{| l | l | l |}
     \hline
-    \                                                 & OpenCV & SSD          \\ \hline
+    \textbf{Setting}                     & \textbf{OpenCV Acc.} & \textbf{SSD Acc.}          \\ \hline
      With background light                  & 0\%       & 100\%       \\ \hline 
      Rotating -45 to 45 degrees           &  20.2\%  & 98.8\%      \\ \hline                 
      Scaling .5 to 2 from original scale & 100\%    & 99.6\%                 \\  \hline
 \end{tabular}
 \end{center}
 
-After integration into the rendering engine, we can measure the performance of the various methods using frames per second.
+After integration into the rendering engine, we can measure the performance of the various methods using the frames per second metric.
 
 \begin{center}
     \begin{tabular}{| l | l |}
     \hline
-     Method                                                 & FPS       \\ \hline
+     \textbf{Method}                                                 & \textbf{FPS}       \\ \hline
      Translation only                                    & 35           \\ \hline 
      Translation + scaling                             &  29           \\ \hline      
     Translation + rotation                            & 28             \\ \hline           
@@ -279,7 +277,7 @@ After integration into the rendering engine, we can measure the performance of t
 \end{tabular}
 \end{center}
 
-As seen above, by using a kalman filter to smooth movements, polling less frequently, and farming out the detection process to a background thread, we can achieve up to 80 fps. The game runs at a negigible FPS drop from without the facial recognition.
+As seen above, by using a Kalman filter to smooth movements, polling less frequently, and farming out the detection process to a background thread, we achieve up to 80 FPS. In fact, the game runs only negligibly faster without the facial tracking at all.
 
 \section{Conclusion}
 The need for fast tracking in an online setting is well-understood and has utility
