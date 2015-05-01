@@ -7,7 +7,8 @@ class KalmanFilter1:
     Assumes that all dynamics are locally linear (constant velocity).
     Models kinematic motion.
     """
-    def __init__(self, q, r):
+    def __init__(self, q, r, t_gain=1.0):
+        self.t_gain = t_gain
         self._trajectory = [np.array([0,0,0,0,0,0])]
         self.last_time = time.time()
         self.C = np.matrix([
@@ -22,7 +23,7 @@ class KalmanFilter1:
         current_time = time.time()
         T = current_time - self.last_time
         self.last_time = current_time
-        return T
+        return T*self.t_gain
     def Update(self,observation):
         T = self.GetTimeDelta()
         A = np.matrix([
@@ -60,7 +61,8 @@ class KalmanFilter2:
     More flexible than KalmanFilter1, but more susceptible to noise and
     divergence.
     """
-    def __init__(self, q, r):
+    def __init__(self, q, r, t_gain=1.0):
+        self.t_gain = t_gain
         self._trajectory = [np.array([0,0,0,0,0,0,0,0,0])]
         self.last_time = time.time()
         self.C = np.matrix([
@@ -75,7 +77,7 @@ class KalmanFilter2:
         current_time = time.time()
         T = current_time - self.last_time
         self.last_time = current_time
-        return T
+        return T*self.t_gain
     def Update(self,observation):
         T = self.GetTimeDelta()
         A = np.matrix([
