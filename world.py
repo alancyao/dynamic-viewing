@@ -11,6 +11,7 @@ from pyglet.graphics import TextureGroup
 from pyglet.window import key, mouse
 
 from facial_recognition import *
+from facial_recognition2 import *
 
 TICKS_PER_SEC = 60
 
@@ -19,6 +20,7 @@ SECTOR_SIZE = 16
 
 # Face tracking flags
 USE_FACE = True
+USE_KALMAN = True
 DETECT_PER_FRAMES = 5
 SMOOTHING_TIME = 5
 
@@ -504,11 +506,15 @@ class Window(pyglet.window.Window):
         self.ext_viewrots = [0] * 5
         self.do_rot = False
         self.do_scale = False
+        self.do_trans = True
 
         if USE_FACE:
             self.detect_ctr = 1
-            self.f = FacialRecognition()
-            self.f.calibrate()
+            if USE_KALMAN:
+                self.f = FacialRecognition2()
+            else:
+                self.f = FacialRecognition()
+                self.f.calibrate()
 
     def set_exclusive_mouse(self, exclusive):
         """ If `exclusive` is True, the game will capture the mouse, if False
@@ -600,7 +606,7 @@ class Window(pyglet.window.Window):
         if USE_FACE:
             self.detect_ctr = (self.detect_ctr + 1) % DETECT_PER_FRAMES
             if self.detect_ctr == 0:
-                ext_rotation, ext_tran, ext_viewrot = self.f.get_transforms(self.do_rot, self.do_scale)
+                ext_rotation, ext_tran, ext_viewrot = self.f.get_transforms(self.do_rot, self.do_scale, self.do_trans)
                 self.ext_rotations[self.smoothing_ind] = ext_rotation
                 self.ext_trans[self.smoothing_ind] = ext_tran
                 self.ext_viewrots[self.smoothing_ind] = ext_viewrot
@@ -760,6 +766,9 @@ class Window(pyglet.window.Window):
             self.do_rot = not self.do_rot
             self.ext_viewrots = [0] * 5
             print 'Rotations are', 'on' if self.do_rot else 'off'
+        elif symbol == key.Y:
+            self.do_trans = not self.do_trans
+            print 'Planar translations are', 'on' if self.do_scale else 'off'
         elif symbol == key.SPACE:
             if self.dy == 0:
                 self.dy = JUMP_SPEED

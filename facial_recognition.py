@@ -26,7 +26,8 @@ class WebcamImageGetter:
   def updateFrame(self):
     while self.keep_going:
       ret, frame = self.capture.read()
-      self.currentFrame= cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
+      if ret:
+          self.currentFrame= cv2.resize(frame, dsize=(0, 0), fx=DISP_SCALE, fy=DISP_SCALE)
 
   def getFrame(self):
     return self.currentFrame
@@ -137,13 +138,16 @@ class FacialRecognition:
 
     return best_i, best_j, frame, interp_shape, interp_rot
 
-  def get_transforms(self, do_rot=True, do_scale=True):
+  def get_transforms(self, do_rot=True, do_scale=True, do_trans=True):
     best_i, best_j, frame, interp_shape, interp_rot = self.get_face(do_rot, do_scale)
     # Rotation amount
     if self.init_interp_shape is None:
       self.init_interp_shape = interp_shape
-    center = (np.array((WINDOW_AMT*best_j, WINDOW_AMT*best_i)) + np.array((WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h))) / 2.0
-    disp = center - self.start_center
+    if do_trans:
+        center = (np.array((WINDOW_AMT*best_j, WINDOW_AMT*best_i)) + np.array((WINDOW_AMT*best_j + self.w, WINDOW_AMT*best_i + self.h))) / 2.0
+        disp = center - self.start_center
+    else:
+        disp = center - center
     rot = np.arctan(disp/START_FACE_DIST) * (180 / np.pi) # change to actual face dist
 
     # Z-Axis translation amt:  w = fX/Z -> Z = fX/w
