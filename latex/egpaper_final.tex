@@ -45,7 +45,7 @@ Alexander Chu\\
   lighting and background invariance.
 \end{abstract}
 
-\section{Introduction}
+\section*{Introduction}
 3d graphics on monitors are unrealistic because they assume a center of projection
 some distance away from the center of the screen. That is, they assume the viewer
 is at a certain fixed position (usually in front of the middle of the screen) when
@@ -63,7 +63,7 @@ compute orientation and distance, and update the scene accordingly. We validate 
 approach in a simulated computer game environment and through experimental comparisons
 with OpenCV's implementation of facial tracking using Haar cascades.
 
-\section{Approach}
+\section*{Approach}
 
 \subsection*{Multiscale SSD for Tracking}
 SSD$(I, J)$ of two images $I$ and $J$ is computed as
@@ -79,7 +79,7 @@ experimentation found this approach to be much too slow (enabling us to only rea
 in an online setting, which would have deproved upon introducing rotation and scale invariance).\\
 
 In order to remedy this, we instead operate on multiple scales of both the online image and the
-template image, by constructing a Gaussian pyramid and running the full sliding window for only
+template image, by constructing a Gaussian pyramid \cite{gpyr} and running the full sliding window for only
 the topmost level of the pyramid. Then, once we have found the optimal window position which
 minimizes SSD here, we have a small range within which we may search the next lowest level of
 the pyramid. This continues until we have found the optimal window position for our original image.
@@ -172,11 +172,11 @@ TODO ALEX: need to put stuff about kalman filter \cite{kalman} smoothing here,
 NOTE: avoid using specific numbers here. describe the specific numbers in
 the next section, named ``Setting''
 
-\section{Experiments}
+\section*{Experiments}
 
 \subsection*{Setting}
 We evaluate performance in a simulated computer game environment loosely based
-on Minecraft. We feed our webcam image through Algorithm 1 for each rotation
+on Minecraft \cite{minecraft}. We feed our webcam image through Algorithm 1 for each rotation
 value and each scale value to determine the orientation and distance amounts as well as
 the window position which minimizes SSD for these amounts. Then, we use this
 information to update the rendering engine as previously described. In our experimentation,
@@ -279,13 +279,14 @@ After integration into the rendering engine, we can measure the performance of t
 
 As seen above, by using a Kalman filter to smooth movements, polling less frequently, and farming out the detection process to a background thread, we achieve up to 80 FPS. In fact, the game runs only negligibly faster without the facial tracking at all.
 
-\section{Conclusion}
+\section*{Conclusion}
 The need for fast tracking in an online setting is well-understood and has utility
 in several applications of computer vision. We developed and evaluated performance
 of an algorithm which uses multiscale SSD template matching and offers invariance to
 capture orientation and distance information. We further demonstrated the applicability of our
 algorithm by illustrating real-time performance in a simulated computer game environment,
-and compared its performance to that of OpenCV.
+and compared its performance to that of OpenCV. Our code is fully open-source and available
+at \url{https://github.com/alancyao/dynamic-viewing}.
 
 {\small
 \bibliographystyle{ieee}
