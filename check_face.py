@@ -46,7 +46,6 @@ def check_face(frame, shape, interp_rot, i, j):
     #print score
     #cv2.imshow("face", face)
     #cv2.imshow("projection", projection)
-    print score
     return score <= FACE_THRESHOLD
 
 
@@ -58,18 +57,14 @@ def main():
         print "{0} Eigenfaces.".format(n)
         n_scores = []
         f_scores = []
-        for i in range(5):
-            if i == 2:
-                continue
+        for i in range(4):
             img = imread("./face/nonface{0}.jpg".format(i))
-            score = project_eigenfaces(img,faces)
+            score = project_eigenfaces(img,faces)[0]
             print "NonFace{0}".format(i), score
             n_scores.append(score)
-        for i in range(6):
-            if i == 2:
-                continue
+        for i in range(5):
             img = imread("./face/face{0}.jpg".format(i))
-            score = project_eigenfaces(img,faces)
+            score = project_eigenfaces(img,faces)[0]
             print "Face{0}".format(i), score
             f_scores.append(score)
         print

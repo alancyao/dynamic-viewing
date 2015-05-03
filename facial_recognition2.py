@@ -36,8 +36,10 @@ class FacialRecognition2:
         while True:
             self.get_face()
             if cv2.waitKey(1) & 0xFF == 10:
+                self.facial_recognition.end()
                 cv2.destroyWindow("frame")
                 self.facial_recognition.ig.keep_going = False
+                self.stop=True
                 cv2.waitKey(1)
                 break
 
@@ -51,7 +53,6 @@ class FacialRecognition2:
         if self.params is not None:
             (best_i, best_j, frame, interp_shape, interp_rot, ztrans) = self.params
             self.has_face = check_face(frame, interp_shape, interp_rot, best_i, best_j)
-            print self.has_face
             self.old_params = self.params
             self.params = None
             coords = [best_i, best_j, ztrans]
