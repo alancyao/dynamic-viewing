@@ -40,7 +40,7 @@ Alexander Chu\\
   tracking an object in a live video feed. Furthermore, we build invariance
   to rotation and scale directly into our system using linear interpolation on heuristic
   score functions. We evaluate performance through comparison with OpenCV's tracking
-  algorithms based on Haar cascades and show that our system performs comparably to or
+  algorithms based on Haar cascades \cite{haarcascade} and show that our system performs comparably to or
   better than OpenCV in all accuracy metrics, with a considerable improvement to
   lighting and background invariance.
 \end{abstract}
@@ -168,7 +168,7 @@ $$Z = f - f \frac{scale_{interp}}{width_{window}}$$
 $$x_{rot}, y_{rot} = tan^{-1}(\frac{(x_i,y_i)-(x_c,y_c)}{Z})$$
 We then rotate around the $x$ and $y$ axes by $x_{rot}, y_{rot}$ and around the viewing axis by $rot_{interp}$. We translate the camera along the viewing axis by $Z$.
 
-TODO ALEX: need to put stuff about kalman filter smoothing here, 
+TODO ALEX: need to put stuff about kalman filter \cite{kalman} smoothing here,
 NOTE: avoid using specific numbers here. describe the specific numbers in
 the next section, named ``Setting''
 
@@ -224,7 +224,7 @@ Our development environment was Python 2.7, and our rendering engine was Pyglet.
 
 One issue we noted is that the SSD algorithm is not good at detecting whether the template
 image is in the online image or not -- it is only good at tracking the image. For this
-purpose, we run an SVM (TODO: do we actually?) which tells us whether the online image contains the template image,
+purpose, we run an SVM (TODO Alex: switch to eigenfaces \cite{eigenfaces}) which tells us whether the online image contains the template image,
 and if it doesn't, smoothly update the rendering to avoid jerkiness.
 
 \subsection*{Results}
