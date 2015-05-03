@@ -49,7 +49,8 @@ class FacialRecognition2:
             ztrans = self.facial_recognition.camera_f - self.facial_recognition.camera_f * interp_shape[0] / self.facial_recognition.w
             self.params = (best_i, best_j, frame, interp_shape, interp_rot, ztrans)
             self.ready = True
-    def get_face(self, do_rot=True, do_scale=True):
+
+    def get_face(self):
         if self.params is not None:
             (best_i, best_j, frame, interp_shape, interp_rot, ztrans) = self.params
             self.has_face = check_face(frame, interp_shape, interp_rot, best_i, best_j)
@@ -68,7 +69,9 @@ class FacialRecognition2:
         return best_i, best_j, frame, interp_shape, interp_rot, ztrans
 
     def get_transforms(self, do_rot=True, do_scale=True, do_trans=True):
-        best_i, best_j, frame, interp_shape, interp_rot, ztrans = self.get_face(do_rot, do_scale)
+        self.do_rot = do_rot
+        self.do_scale = do_scale
+        best_i, best_j, frame, interp_shape, interp_rot, ztrans = self.get_face()
         if (not self.has_face and self.last_output is not None):
             return self.last_output
         # Rotation amount
