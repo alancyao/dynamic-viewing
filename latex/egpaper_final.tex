@@ -219,6 +219,59 @@ x =
 
 Including acceleration in the model allows us to fully model the entire range of kinematic motion. However, it also made the model much more sensitive to noise from the face tracker. Modeling the dynamics using locally constant velocity, on the other hand, produced smooth, real time interpolations between face tracking frames. 
 
+\subsection*{Eliminating False Positives}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=20mm]{./eigenface/eigenfaces/1.jpg}
+\includegraphics[width=20mm]{./eigenface/eigenfaces/2.jpg}
+\includegraphics[width=20mm]{./eigenface/eigenfaces/3.jpg}
+\includegraphics[width=20mm]{./eigenface/eigenfaces/4.jpg}
+\caption{Some Eigenfaces.\label{overflow}}
+\end{figure}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=20mm]{./eigenface/reconstruction/face_proj_1.jpg}
+\includegraphics[width=20mm]{./eigenface/reconstruction/face_proj_10.jpg}
+\includegraphics[width=20mm]{./eigenface/reconstruction/face_proj_100.jpg}
+\includegraphics[width=20mm]{./eigenface/reconstruction/face_proj_1000.jpg}
+\caption{Reconstruction of a face: 1, 10, 100, 1000 eigenfaces.\label{overflow}}
+\end{figure}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=20mm]{./eigenface/reconstruction/nonface_proj_1.jpg}
+\includegraphics[width=20mm]{./eigenface/reconstruction/nonface_proj_10.jpg}
+\includegraphics[width=20mm]{./eigenface/reconstruction/nonface_proj_100.jpg}
+\includegraphics[width=20mm]{./eigenface/reconstruction/nonface_proj_1000.jpg}
+\caption{Reconstruction of a chair: 1, 10, 100, 1000 eigenfaces.\label{overflow}}
+\end{figure}
+
+
+
+One issue we noted is that the SSD algorithm is not good at detecting whether the template image is in the online image or not -- it is only good at tracking the face. We need an algorithm that detects whether the bounding box from the SSD detection actually contains a face or not. For this purpose, we use an Eigenface algorithm \cite{eigenfaces} to determine if the image in the box falls within the space of faces. We first compute 100 eigenfaces from 2000 faces sampled at random from the Labeled Faces in the Wild \cite{lfw} dataset. We then use the following algorithm to determine if a given image is a face:
+
+\begin{algorithm}
+ \caption{Face Detection using Eigenface}
+ \begin{algorithmic}[1]
+  \Procedure{IsFace}{face, eigenfaces, averageFace, threshold}
+  \State Resize face to the size of all the eigenfaces.
+  \State face $\leftarrow$ (toGreyScale(face) - averageFace)
+  \State face $\leftarrow$ face / $||\mbox{face}||$
+  \State projection $\leftarrow$ zeros(height(face),width(face))
+  \For {eigenface in eigenfaces}
+     \State projection += face $\cdot$ eigenface
+  \EndFor
+  \State face /= max(face)
+  \State projection /= max(projection)
+  \State \Return $||\mbox{face - projection}||$ < threshold
+  \EndProcedure
+ \end{algorithmic}
+\end{algorithm}
+
+If the object is actually a face, we should get a low reconstruction error, since the object falls within the subspace used in computing the PCA basis for faces. If the object is not a face, we should get a higher reconstruction error. Care must be taken to restrict the dimensionality of the PCA basis used. As seen in figure 2 and 3, reconstruction quality of faces and non-faces differs the most with around 100 eigenfaces for our image size.
+
 \section*{Experiments}
 
 \subsection*{Setting}
@@ -268,11 +321,6 @@ Our development environment was Python 2.7, and our rendering engine was Pyglet.
 \includegraphics[width=90mm]{rotation_right.jpg}
 \caption{Rotating head left.\label{overflow}}
 \end{figure}
-
-One issue we noted is that the SSD algorithm is not good at detecting whether the template
-image is in the online image or not -- it is only good at tracking the image. For this
-purpose, we run an SVM (TODO Alex: switch to eigenfaces \cite{eigenfaces}) which tells us whether the online image contains the template image,
-and if it doesn't, smoothly update the rendering to avoid jerkiness.
 
 \subsection*{Results}
 We achieve acceptable error rates for scale distance and exact rotation of the face as shown in Figures 1 through 6. In practice, due to smoothing and user perception, the error between exact facial rotation/scale and the computed rotation/scale is not noticeable. Additionally, the algorithm always detects the bounding box of the face correctly. This ensures that the core functionality is not affected.
