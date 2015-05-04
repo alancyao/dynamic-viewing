@@ -73,14 +73,14 @@ At the heart of our system is a multiscale SSD template matcher, which operates 
 Initially, the user is asked to place his or her face inside an axis-aligned square window of size
 $m$ by $m$. The image inside this window is then used as a template for the online
 portion of the tracking. A naive SSD-based approach would then proceed by sliding a window of
-size $m$ by $m$ across the online image captured by the webcam, performing SSD at each window,
+size $m$ by $m$ across the online image captured by the webcam, performing SSD at each window
 and returning the window position corresponding to the minimum SSD. However, our initial
 experimentation found this approach to be much too slow (enabling us to only reach about 10 FPS
 in an online setting, which would have deproved upon introducing rotation and scale invariance).\\
 
 In order to remedy this, we instead operate on multiple scales of both the online image and the
 template image, by constructing a Gaussian pyramid \cite{gpyr} and running the full sliding window for only
-the topmost level of the pyramid. Then, once we have found the optimal window position which
+the topmost (downsampled) level of the pyramid. Then, once we have found the optimal window position which
 minimizes SSD here, we have a small range within which we may search the next lowest level of
 the pyramid. This continues until we have found the optimal window position for our original image.
 This algorithm requires keeping track of the SSD search range at the current pyramid level.
@@ -128,26 +128,26 @@ is a tuple of the form (start $i$, end $i$, start $j$, end $j$); it keeps
 track of the region of the online image within which the SSD must be computed
 at this level of the pyramid, in units of window size (this is why it gets
 multiplied by \texttt{wa} in the calculation of the candidate region, at line 8 of
-DoSSD). Note that the algorithm assumes a downsampling factor of 2 at each level
+\texttt{DoSSD}). Note that the algorithm assumes a downsampling factor of 2 at each level
 of the two pyramids.
 
 \subsection*{Building Invariance}
-Algorithm 1, multiscale SSD, only provides translational invariance between the
+Algorithm 1, multiscale SSD, only informs us of the object's translation between the
 template image and the online image. However, this is limited in utility, so we
 extend the algorithm to provide rotational and scale invariance, and in the
 process we develop a method of determining the orientation and scale both quickly
-and accurately. If one had infinite computational resources, one would discretize
+and accurately. If one had infinite computational resources, one could discretize
 each of these quantities into a large number of buckets and run Algorithm 1 for
 the template at each quantity. For example, one could imagine running Algorithm 1 on the template
 image rotated each degree from -45 to 45, and take the orientation which minimizes SSD.
 However, this is clearly not computationally feasible.\\
 
 Instead, we propose the following approach. For orientation, we run Algorithm 1
-on the template image rotated to a small number of preset orientations, then based on the SSD value
+on the template image rotated to a small number of preset orientations; then, based on the SSD value
 of each of these, we perform linear interpolation to estimate the current orientation.
 The interpolation weights are based on the SSD values: since a lower SSD means we want
 to give this rotation amount a higher weight, we use the multiplicative inverse of the
-SSD for the interpolation weights. The general formula then becomes
+SSD. The general formula then becomes
 $$rot = \displaystyle\sum_{k}(\dfrac{1.0 / SSD_{k}}{\sum_{k'}(1.0 / SSD_{k'})} * rots[k])$$
 where $rots$ is an array that holds all the preset rotation amounts in degrees,
 the summation is over the indices of this array, and $SSD_{k}$ represents the SSD value
@@ -168,10 +168,11 @@ $$Z = f - f \frac{scale_{interp}}{width_{window}}$$
 $$x_{rot}, y_{rot} = tan^{-1}(\frac{(x_i,y_i)-(x_c,y_c)}{Z})$$
 We then rotate around the $x$ and $y$ axes by $x_{rot}, y_{rot}$ and around the viewing axis by $rot_{interp}$. We translate the camera along the viewing axis by $Z$.
 
-\subsection*{Real Time Smoothing}
-Because SSD still only gives us face position tracking data at a finite framerate, we perform real time smoothing and interpoltation using a Kalman filter. We represent the state of the face (position, velocity, and acceleration) as a vector, and apply a linear dynamics model to predict the next position of the face. We then weight the prediction against any new face tracking data that may be available at a given time. Our specific implementation of the Kalman filter is based on Meinhold and Singpurwalla's work \cite{kalman}.
+\section*{Optimizations}
+\subsection*{Real-time Smoothing}
+Because SSD still only gives us position tracking data at a finite frame rate, we perform real-time smoothing and interpolation using a Kalman filter. We represent the state of the face (position, velocity, and acceleration) as a vector, and apply a linear dynamics model to predict the next position of the face. We then weight the prediction against any new face tracking data that may be available at a given time. Our specific implementation of the Kalman filter is based on Meinhold and Singpurwalla's work \cite{kalman}.
 
-We experimented with two different dynamics models for real time smoothing. First, we modeled the position, velocity, and acceleration as part of the state space. We then tried modeling only position and velocity, assuming zero local acceleration. The resulting dynamics updates are shown below:
+We experiment with two different dynamics models for real-time smoothing. First, we model the position, velocity, and acceleration as part of the state space. We then model only position and velocity, assuming zero local acceleration. The resulting dynamics updates are shown below:
 
 \textbf{Position, Velocity, and Acceleration}
 $$ x_t =\begin{bmatrix}
@@ -217,7 +218,7 @@ x =
   v_{z} \\
 \end{bmatrix}$$
 
-Including acceleration in the model allows us to fully model the entire range of kinematic motion. However, it also made the model much more sensitive to noise from the face tracker. Modeling the dynamics using locally constant velocity, on the other hand, produced smooth, real time interpolations between face tracking frames. 
+Including acceleration in the model allows us to fully model the entire range of kinematic motion. However, it also made the model much more sensitive to noise from the face tracker. Modeling the dynamics using locally constant velocity, on the other hand, produced smoother real-time interpolations between face tracking frames. 
 
 \subsection*{Eliminating False Positives}
 
@@ -250,7 +251,7 @@ Including acceleration in the model allows us to fully model the entire range of
 
 
 
-One issue we noted is that the SSD algorithm is not good at detecting whether the template image is in the online image or not -- it is only good at tracking the face. We need an algorithm that detects whether the bounding box from the SSD detection actually contains a face or not. For this purpose, we use an Eigenface algorithm \cite{eigenfaces} to determine if the image in the box falls within the space of faces. We first compute 100 eigenfaces from 2000 faces sampled at random from the Labeled Faces in the Wild \cite{lfw} dataset. We then use the following algorithm to determine if a given image is a face:
+One issue we encountered is that the SSD algorithm is not good at detecting whether the template image is in the online image or not -- it is only good at determining its location if it is in the online image. To remedy this, we use an Eigenface algorithm \cite{eigenfaces} to determine if the image in the box falls within the space of faces. We first compute 100 eigenfaces from 2000 faces sampled at random from the Labeled Faces in the Wild \cite{lfw} dataset. We then use the following algorithm to determine if a given image is a face:
 
 \begin{algorithm}
  \caption{Face Detection using Eigenface}
@@ -265,12 +266,12 @@ One issue we noted is that the SSD algorithm is not good at detecting whether th
   \EndFor
   \State face /= max(face)
   \State projection /= max(projection)
-  \State \Return $||\mbox{face - projection}||$ < threshold
+  \State \Return $||\mbox{face - projection}|| <$ threshold
   \EndProcedure
  \end{algorithmic}
 \end{algorithm}
 
-If the object is actually a face, we should get a low reconstruction error, since the object falls within the subspace used in computing the PCA basis for faces. If the object is not a face, we should get a higher reconstruction error. Care must be taken to restrict the dimensionality of the PCA basis used. As seen in figure 2 and 3, reconstruction quality of faces and non-faces differs the most with around 100 eigenfaces for our image size.
+If the object is actually a face, we should get a low reconstruction error, since the object falls within the subspace used in computing the PCA basis for faces. If the object is not a face, we should get a higher reconstruction error. Care must be taken to restrict the dimensionality of the PCA basis used. As seen in Figures 2 and 3, reconstruction quality of faces and non-faces differs with around 100 eigenfaces for our image size.
 
 \section*{Experiments}
 
@@ -288,42 +289,42 @@ was 8, and we assumed the average face size to be 250 pixels.
 Our development environment was Python 2.7, and our rendering engine was Pyglet.
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=90mm]{left_trans.jpg}
+\includegraphics[width=80mm]{left_trans.jpg}
 \caption{Initial configuration of head.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=90mm]{right_trans.jpg}
+\includegraphics[width=80mm]{right_trans.jpg}
 \caption{Moving head to the left.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=90mm]{forward.jpg}
+\includegraphics[width=80mm]{forward.jpg}
 \caption{Moving head forward and to the right.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=90mm]{back_away.jpg}
+\includegraphics[width=80mm]{back_away.jpg}
 \caption{Moving head back.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=90mm]{rotation_left.jpg}
+\includegraphics[width=80mm]{rotation_left.jpg}
 \caption{Rotating head right.\label{overflow}}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=90mm]{rotation_right.jpg}
+\includegraphics[width=80mm]{rotation_right.jpg}
 \caption{Rotating head left.\label{overflow}}
 \end{figure}
 
 \subsection*{Results}
-We achieve acceptable error rates for scale distance and exact rotation of the face as shown in Figures 1 through 6. In practice, due to smoothing and user perception, the error between exact facial rotation/scale and the computed rotation/scale is not noticeable. Additionally, the algorithm always detects the bounding box of the face correctly. This ensures that the core functionality is not affected.
+We achieve acceptable error rates for scale distance and exact rotation of the face as shown in Figures 4 through 9. In practice, due to smoothing and user perception, the error between exact facial rotation/scale and the computed rotation/scale is not noticeable. Additionally, the algorithm always detects the bounding box of the face correctly. This ensures that the core functionality is not affected.
 
 \begin{figure}[ht!]
 \centering
@@ -337,24 +338,24 @@ We achieve acceptable error rates for scale distance and exact rotation of the f
 \end{figure}
 
 \subsection*{Evaluation}
-The OpenCV facial Haar cascade classifier achieves similar performance to a naive, single-threaded implementation of our multiscale SSD matcher along with the rotation and scale Gaussian pyramids.
+The OpenCV facial Haar cascade classifier achieves similar performance to a naive, single-threaded implementation of our multiscale SSD matcher.
 \begin{center}
     \begin{tabular}{| l | l | l |}
     \hline
-    \         & \textbf{SSD} & \textbf{OpenCV Haar cascade} \\ \hline
+    \         & \textbf{SSD} & \textbf{OpenCV Haar} \\ \hline
     Face detections per second & 6.28 & 6.15 \\  \hline
     \end{tabular}
 \end{center}
 
-However, we achieve noticably higher accuracy on rotated faces, while maintaining the same accuracy on scaled and translated faces. The SSD method is also invariant to backgrounds; the OpenCV Haar cascader doesn't work against a light-colored background or one with strong lighting.
+However, we achieve noticeably higher accuracy on rotated faces, while maintaining the same accuracy on scaled and translated faces. Our method is also invariant to backgrounds; the OpenCV Haar cascader doesn't work against a light-colored background or one with strong lighting.
 
 \begin{center}
     \begin{tabular}{| l | l | l |}
     \hline
     \textbf{Setting}                     & \textbf{OpenCV Acc.} & \textbf{SSD Acc.}          \\ \hline
      With background light                  & 0\%       & 100\%       \\ \hline 
-     Rotating -45 to 45 degrees           &  20.2\%  & 98.8\%      \\ \hline                 
-     Scaling .5 to 2 from original scale & 100\%    & 99.6\%                 \\  \hline
+     Rot. -45 to 45 degrees           &  20.2\%  & 98.8\%      \\ \hline
+     Scale .5 to 2 from orig. & 100\%    & 99.6\%                 \\  \hline
 \end{tabular}
 \end{center}
 
@@ -372,7 +373,7 @@ After integration into the rendering engine, we can measure the performance of t
 \end{tabular}
 \end{center}
 
-As seen above, by using a Kalman filter to smooth movements, polling less frequently, and farming out the detection process to a background thread, we achieve up to 80 FPS. In fact, the game runs only negligibly faster without the facial tracking at all.
+As seen above, by using a Kalman filter to smooth movements, polling less frequently, and farming out the detection process to a background thread, we achieve up to 80 FPS. In fact, the game runs only negligibly faster without the facial tracking at all, so performance is unaffected.
 
 \section*{Conclusion}
 The need for fast tracking in an online setting is well-understood and has utility
@@ -381,7 +382,8 @@ of an algorithm which uses multiscale SSD template matching and offers invarianc
 capture orientation and distance information. We further demonstrated the applicability of our
 algorithm by illustrating real-time performance in a simulated computer game environment,
 and compared its performance to that of OpenCV. Our code is fully open-source and available
-at \url{https://github.com/alancyao/dynamic-viewing}.
+at \url{https://github.com/alancyao/dynamic-viewing}. A demo video is available at
+\url{https://www.youtube.com/watch?v=KeKCjQJdgLg}.
 
 {\small
 \bibliographystyle{ieee}
