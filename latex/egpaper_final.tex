@@ -168,9 +168,56 @@ $$Z = f - f \frac{scale_{interp}}{width_{window}}$$
 $$x_{rot}, y_{rot} = tan^{-1}(\frac{(x_i,y_i)-(x_c,y_c)}{Z})$$
 We then rotate around the $x$ and $y$ axes by $x_{rot}, y_{rot}$ and around the viewing axis by $rot_{interp}$. We translate the camera along the viewing axis by $Z$.
 
-TODO ALEX: need to put stuff about kalman filter \cite{kalman} smoothing here,
-NOTE: avoid using specific numbers here. describe the specific numbers in
-the next section, named ``Setting''
+\subsection*{Real Time Smoothing}
+Because SSD still only gives us face position tracking data at a finite framerate, we perform real time smoothing and interpoltation using a Kalman filter. We represent the state of the face (position, velocity, and acceleration) as a vector, and apply a linear dynamics model to predict the next position of the face. We then weight the prediction against any new face tracking data that may be available at a given time. Our specific implementation of the Kalman filter is based on Meinhold and Singpurwalla's work \cite{kalman}.
+
+We experimented with two different dynamics models for real time smoothing. First, we modeled the position, velocity, and acceleration as part of the state space. We then tried modeling only position and velocity, assuming zero local acceleration. The resulting dynamics updates are shown below:
+
+\textbf{Position, Velocity, and Acceleration}
+$$ x_t =\begin{bmatrix}
+  1 & T & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+  0 & 1 & T & 0 & 0 & 0 & 0 & 0 & 0 \\
+  0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+  0 & 0 & 0 & 1 & T & 0 & 0 & 0 & 0 \\
+  0 & 0 & 0 & 0 & 1 & T & 0 & 0 & 0 \\
+  0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+  0 & 0 & 0 & 0 & 0 & 0 & 1 & T & 0 \\
+  0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & T \\
+  0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
+\end{bmatrix} x_{t-1},
+x =
+\begin{bmatrix}
+  x \\
+  v_{x} \\
+  a_{x} \\
+  y \\
+  v_{y} \\
+  a_{y} \\
+  z \\
+  v_{z} \\
+  a_{zt} \\
+\end{bmatrix}$$
+
+\textbf{Position and Velocity}
+$$ x_t =\begin{bmatrix}
+  1 & T & 0 & 0 & 0 & 0 \\
+  0 & 1 & 0 & 0 & 0 & 0 \\
+  0 & 0 & 1 & T & 0 & 0 \\
+  0 & 0 & 0 & 1 & 0 & 0 \\
+  0 & 0 & 0 & 0 & 1 & T \\
+  0 & 0 & 0 & 0 & 0 & 1 \\
+\end{bmatrix} x_{t-1},
+x =
+\begin{bmatrix}
+  x \\
+  v_{x} \\
+  y \\
+  v_{y} \\
+  z \\
+  v_{z} \\
+\end{bmatrix}$$
+
+Including acceleration in the model allows us to fully model the entire range of kinematic motion. However, it also made the model much more sensitive to noise from the face tracker. Modeling the dynamics using locally constant velocity, on the other hand, produced smooth, real time interpolations between face tracking frames. 
 
 \section*{Experiments}
 
